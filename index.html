@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f7f2">
+  <meta name="description" content="一颗点数，一排连锁。四点分裂、十字冲击的休闲解谜小游戏：30 关战役，合理分配手中的点数，清空棋盘。">
+  <title>十字连爆 · 一颗点数，一排连锁</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23f0a83c'/%3E%3Cg fill='white'%3E%3Ccircle cx='32' cy='12' r='7'/%3E%3Ccircle cx='32' cy='52' r='7'/%3E%3Ccircle cx='12' cy='32' r='7'/%3E%3Ccircle cx='52' cy='32' r='7'/%3E%3Ccircle cx='32' cy='32' r='10'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css?v=1.0.0">
+  <script src="engine.js?v=1.0.0" defer></script>
+  <script src="solver.js?v=1.0.0" defer></script>
+  <script src="levels.js?v=1.0.0" defer></script>
+  <script src="app.js?v=1.0.0" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="masthead">
+      <button id="home-button" class="brand" type="button" aria-label="返回菜单">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span>十字连爆<small>CHESS CRASH</small></span>
+      </button>
+      <button id="help-button" class="quiet" type="button">玩法说明 <span aria-hidden="true">↗</span></button>
+    </header>
+    <main>
+      <section id="screen-menu" class="screen">
+        <div class="intro">
+          <h1>十字连爆</h1>
+          <p class="tagline">一颗点数，一排连锁。</p>
+          <p class="sub">棋子满 4 点即爆：同行同列全体 +1，连锁一触即发。<br>合理分配手中的点数，清空整块棋盘。</p>
+          <div class="total-stars" id="total-stars">★ 0 / 90</div>
+        </div>
+        <div id="chapters" class="chapters"></div>
+        <div class="menu-foot">
+          <button id="reset-progress" class="quiet" type="button">重置进度</button>
+        </div>
+      </section>
+
+      <section id="screen-game" class="screen hidden">
+        <div class="hud">
+          <div class="hud-left">
+            <span id="level-name" class="level-name"></span>
+            <span id="level-goal" class="level-goal"></span>
+          </div>
+          <div class="hud-bank" id="bank-badge">
+            <b id="bank-num">0</b>
+            <span>可用点数</span>
+          </div>
+        </div>
+        <div class="board-wrap" id="board-wrap">
+          <div class="board" id="board" role="grid" aria-label="棋盘"></div>
+          <div class="chain-badge hidden" id="chain-badge" aria-hidden="true">连锁 ×1</div>
+        </div>
+        <div class="msg" id="msg" aria-live="polite"></div>
+        <div class="controls">
+          <button id="btn-undo" class="ctl" type="button">↩ 悔棋</button>
+          <button id="btn-restart" class="ctl" type="button">⟳ 重开</button>
+          <button id="btn-hint" class="ctl" type="button">💡 提示</button>
+          <button id="btn-menu" class="ctl" type="button">☰ 菜单</button>
+        </div>
+        <p class="kbd-hint">键盘：方向键移动 · Enter / 空格落点 · U 悔棋 · R 重开 · H 提示</p>
+      </section>
+    </main>
+    <footer class="foot">一关一分钟，输了就重开——提示免费，答案可看。</footer>
+  </div>
+
+  <div id="coach" class="coach hidden" role="dialog" aria-label="教程">
+    <div class="coach-box">
+      <p id="coach-text"></p>
+      <button id="coach-next" class="ctl primary" type="button">知道了</button>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay hidden" role="dialog" aria-label="结果">
+    <div class="overlay-box" id="overlay-box"></div>
+  </div>
+</body>
+</html>

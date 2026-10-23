@@ -1,0 +1,15 @@
+{
+  "name": "chess-crash",
+  "version": "1.0.0",
+  "private": true,
+  "description": "十字连爆 · 一颗点数，一排连锁。四点分裂、十字冲击的休闲解谜 H5 小游戏。",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test tests/engine.test.js tests/solver.test.js tests/levels.test.js",
+    "levels": "node tools/generate-levels.cjs",
+    "build:offline": "node tools/build-offline.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
