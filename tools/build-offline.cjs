@@ -1,4 +1,4 @@
-/* 离线单文件构建：把 style/engine/solver/levels/app 内联进一个 HTML，
+/* 离线单文件构建：把 style/engine/solver/levels/challenge/app 内联进一个 HTML，
  * 在项目父目录生成 chess-crash.html（双击即玩，无需网络）。 */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -23,6 +23,7 @@ html = html.replace(
 inline(/<script src="engine\.js\?[^"]*" defer><\/script>/, 'engine.js');
 inline(/<script src="solver\.js\?[^"]*" defer><\/script>/, 'solver.js');
 inline(/<script src="levels\.js\?[^"]*" defer><\/script>/, 'levels.js');
+inline(/<script src="challenge\.js\?[^"]*" defer><\/script>/, 'challenge.js');
 inline(/<script src="app\.js\?[^"]*" defer><\/script>/, 'app.js');
 html = html.replace('</body>', scripts.join('\n') + '\n</body>');
 

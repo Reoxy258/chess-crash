@@ -1,10 +1,14 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.1.0）
  *
- * 依赖：engine.js / solver.js / levels.js（全局 CC_*）
+ * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
+ * 三种玩法共用一套棋盘与演出：
+ * - 战役（30 关，背板重试）；无限挑战（难度递增、失败即结算、跑分纪录）；
+ *   每日挑战（日期种子，全站同款，星数取当天最佳）。
  * 演出核心：消费 applyMove 的 trace，
- * 按波次播放「分裂爆炸 → 冲击光点沿行/列按距离飞行 → 到达 +1」，
- * 连锁波数驱动徽章、震屏与音高阶梯。提示免费；失败可看答案回放。
+ * 按波次播放「分裂爆炸 → 冲击光点沿行/列按距离飞行 → 到达 +1」。
+ * 连锁波数驱动徽章、震屏与音高阶梯；动画中点击可加速。
+ * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
   'use strict';
@@ -15,6 +19,7 @@
   const CHAPTERS = window.CC_CHAPTERS;
   const starFor = window.CC_STAR_FOR;
   const unlocked = window.CC_UNLOCKED;
+  const CH = window.CC_CHALLENGE;
 
   const $ = id => document.getElementById(id);
   const menuScreen = $('screen-menu');
@@ -25,12 +30,17 @@
   const msgEl = $('msg');
   const bankNum = $('bank-num');
   const bankBadge = $('bank-badge');
+  const piecesNum = $('pieces-num');
+  const piecesBadge = $('pieces-badge');
   const overlay = $('overlay');
   const overlayBox = $('overlay-box');
   const coachEl = $('coach');
   const coachText = $('coach-text');
 
   const KEY = 'cc-progress-v1';
+  const KEY_DAILY = 'cc-daily-v1';
+  const KEY_RUN = 'cc-challenge-best-v1';
+  const KEY_SOUND = 'cc-sound';
   const SPARK_UNIT = 55;   // 每格冲击波的飞行毫秒数
   const SPARK_BASE = 90;   // 光点基础飞行毫秒数
 
@@ -45,19 +55,29 @@
   let hintStage = 0;       // 提示层级：0 无 → 1 文案 → 2 高亮
   let hintTimer = 0;
   let coach2Shown = false;
+  let animSpeed = 1;       // 动画中点击可加速到 0.35
+  let runCtx = null;       // { mode: 'campaign'|'challenge'|'daily', stage, seed, runPlaced, runMaxChain }
 
-  function loadProgress() {
+  /* ================= 存档 ================= */
+  function loadJSON(key, fallback) {
     try {
-      const v = JSON.parse(localStorage.getItem(KEY));
-      if (v && typeof v === 'object' && v.stars) return v;
-    } catch (e) { /* 损坏则重置 */ }
+      const v = JSON.parse(localStorage.getItem(key));
+      if (v !== null && v !== undefined) return v;
+    } catch (e) { /* 损坏则回退 */ }
+    return fallback;
+  }
+  function saveJSON(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 隐私模式忽略 */ }
+  }
+  function loadProgress() {
+    const v = loadJSON(KEY, null);
+    if (v && typeof v === 'object' && v.stars) return v;
     return { stars: {} };
   }
-  function saveProgress() {
-    try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch (e) { /* 隐私模式忽略 */ }
-  }
+  const saveProgress = () => saveJSON(KEY, progress);
 
-  /* ================= 音效（WebAudio 合成，无素材） ================= */
+  /* ================= 音效（WebAudio 合成，可静音） ================= */
+  let soundOn = loadJSON(KEY_SOUND, 'on') !== 'off';
   const sfx = (function () {
     let ctx = null;
     function ensure() {
@@ -66,6 +86,7 @@
       return ctx;
     }
     function tone(freq, dur, opts) {
+      if (!soundOn) return;
       opts = opts || {};
       try {
         const c = ensure();
@@ -96,6 +117,16 @@
   })();
   document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
 
+  function syncSoundButton() {
+    $('sound-button').textContent = soundOn ? '🔊' : '🔇';
+  }
+  $('sound-button').addEventListener('click', () => {
+    soundOn = !soundOn;
+    saveJSON(KEY_SOUND, soundOn ? 'on' : 'off');
+    syncSoundButton();
+    msg(soundOn ? '音效已开' : '音效已关');
+  });
+
   /* ================= 工具 ================= */
   const wait = ms => new Promise(r => setTimeout(r, ms));
   function msg(text) {
@@ -106,6 +137,20 @@
   }
   function cellEl(i) { return boardEl.children[i]; }
   function pieceEl(i) { return boardEl.children[i].querySelector('.piece'); }
+  function speedUp() { if (busy) animSpeed = Math.min(animSpeed, 0.35); }
+  function confetti() {
+    const colors = ['#ff8a3d', '#f0a83c', '#4fa3d1', '#3aa76d', '#e8542d'];
+    for (let i = 0; i < 26; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = (Math.random() * 100) + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDelay = (Math.random() * 0.35) + 's';
+      c.style.animationDuration = (1.1 + Math.random() * 0.7) + 's';
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 2400);
+    }
+  }
 
   /* ================= 菜单 ================= */
   function totalStars() {
@@ -148,11 +193,97 @@
       wrap.appendChild(row);
       host.appendChild(wrap);
     }
+    renderChallengeCards();
   }
   function starsHtml(n) {
     let s = '';
     for (let k = 1; k <= 3; k++) s += '<span class="' + (k <= n ? '' : 'off') + '">★</span>';
     return s;
+  }
+  function renderChallengeCards() {
+    const host = $('challenge-cards');
+    host.innerHTML = '';
+    const best = loadJSON(KEY_RUN, null);
+    const dailyRec = loadJSON(KEY_DAILY, null);
+    const today = CH.dateKey(new Date());
+    const isToday = !!(dailyRec && dailyRec.date === today && dailyRec.level);
+
+    const runCard = document.createElement('button');
+    runCard.type = 'button';
+    runCard.className = 'challenge-card';
+    runCard.innerHTML =
+      '<div class="cc-title">♾ 无限挑战</div>' +
+      '<div class="cc-sub">' + (best && best.stage
+        ? '最佳：通过 ' + best.stage + ' 关<br>越打越紧，失败即结算'
+        : '一关接一关，越打越紧<br>失败即结算') + '</div>';
+    runCard.addEventListener('click', startChallenge);
+
+    const dailyCard = document.createElement('button');
+    dailyCard.type = 'button';
+    dailyCard.className = 'challenge-card' + (isToday && dailyRec.stars > 0 ? ' done' : '');
+    dailyCard.innerHTML =
+      '<div class="cc-title">📅 每日挑战</div>' +
+      '<div class="cc-sub">' + (isToday
+        ? (dailyRec.stars > 0 ? '今日完成 ★' + dailyRec.stars + '<br>可重打取最佳' : '今日关卡已就绪<br>一天一关，全站同款')
+        : today + ' · 一天一关<br>全站同款，星数取最佳') + '</div>';
+    dailyCard.addEventListener('click', startDaily);
+
+    host.appendChild(runCard);
+    host.appendChild(dailyCard);
+  }
+
+  /* ================= 挑战模式 ================= */
+  function startChallenge() {
+    const prevBest = loadJSON(KEY_RUN, null);
+    runCtx = {
+      mode: 'challenge',
+      stage: 0,
+      seed: (Date.now() & 0x7fffffff) ^ ((Math.random() * 0x7fffffff) | 0),
+      runPlaced: 0,
+      runMaxChain: 0,
+      startBest: (prevBest && prevBest.stage) || 0
+    };
+    showScreen('game');
+    msg('正在生成第 1 关…');
+    setTimeout(() => {
+      const lv = CH.makeChallenge(0, runCtx.seed);
+      if (!lv) { msg('生成失败，点「重开」再试'); return; }
+      loadLevel(lv);
+    }, 40);
+  }
+
+  function nextChallengeStage() {
+    const stage = runCtx.stage;
+    msg('正在生成第 ' + (stage + 1) + ' 关…');
+    busy = true;
+    setTimeout(() => {
+      const lv = CH.makeChallenge(stage, runCtx.seed);
+      busy = false;
+      if (!lv) { msg('生成失败，点「重开」再试'); return; }
+      loadLevel(lv);
+    }, 40);
+  }
+
+  function startDaily() {
+    showScreen('game');
+    msg('正在准备今日关卡…');
+    setTimeout(() => {
+      const rec = getDailyRecord();
+      if (!rec) { msg('今日关卡生成失败，稍后再试'); return; }
+      runCtx = { mode: 'daily' };
+      loadLevel(rec.level);
+    }, 40);
+  }
+
+  function getDailyRecord() {
+    const today = CH.dateKey(new Date());
+    let rec = loadJSON(KEY_DAILY, null);
+    if (rec && rec.date === today && rec.level) return rec;
+    const lv = CH.makeDaily(new Date());
+    if (!lv) return null;
+    rec = { date: today, level: lv, stars: 0 };
+    saveJSON(KEY_DAILY, rec);
+    return rec;
   }
 
   /* ================= 棋盘渲染 ================= */
@@ -173,6 +304,7 @@
       }
       cell.addEventListener('pointerdown', ev => {
         ev.preventDefault();
+        if (busy) { speedUp(); return; }
         onFocus(i);
         tryPlay(i);
       });
@@ -182,9 +314,11 @@
   }
 
   function syncBoard() {
+    let pieces = 0;
     for (let i = 0; i < game.cells.length; i++) {
       const cell = boardEl.children[i];
       const v = game.cells[i];
+      if (v > 0) pieces++;
       let p = cell.querySelector('.piece');
       if (v > 0) {
         if (!p) {
@@ -198,6 +332,7 @@
       }
       cell.classList.toggle('plantable', v === 0 && game.allowPlant && !game.over);
     }
+    piecesNum.textContent = String(pieces);
     syncHud();
   }
 
@@ -271,7 +406,7 @@
       spark.style.transform = 'translate(' + (a.x - 5) + 'px,' + (a.y - 5) + 'px)';
       boardWrap.appendChild(spark);
       void spark.offsetWidth;
-      const dur = SPARK_BASE + dist * SPARK_UNIT;
+      const dur = Math.max(40, (SPARK_BASE + dist * SPARK_UNIT) * animSpeed);
       spark.style.transitionDuration = dur + 'ms';
       spark.style.transform = 'translate(' + (b.x - 5) + 'px,' + (b.y - 5) + 'px)';
       setTimeout(() => {
@@ -288,6 +423,7 @@
 
   async function playTrace(trace) {
     busy = true;
+    animSpeed = 1;
     clearHint();
 
     // 投点（或播种）
@@ -314,7 +450,7 @@
       sfx.place();
     }
     syncHud();
-    await wait(150);
+    await wait(150 * animSpeed);
 
     const rects = Array.from(boardEl.children).map(c => c.getBoundingClientRect());
     const wrapRect = boardWrap.getBoundingClientRect();
@@ -342,32 +478,37 @@
 
       const flights = wave.boosts.map(b => flySpark(b.from, b.to, b.dist, rects, wrapRect));
       await Promise.all(flights);
-      await wait(130);
+      await wait(130 * animSpeed);
     }
 
     if (chainShown) {
-      await wait(120);
+      await wait(120 * animSpeed);
       chainBadge.classList.add('hidden');
     }
     busy = false;
   }
 
   /* ================= 游戏流程 ================= */
-  function startLevel(i) {
-    levelIdx = i;
-    level = LEVELS[i];
-    game = E.newGame({ size: level.size, board: level.board, bank: level.bank, allowPlant: level.allowPlant });
+  function loadLevel(lv) {
+    level = lv;
+    levelIdx = runCtx && runCtx.mode === 'campaign' ? LEVELS.indexOf(lv) : -1;
+    game = E.newGame({ size: lv.size, board: lv.board, bank: lv.bank, allowPlant: lv.allowPlant });
     history = [];
     maxChain = 0;
     coach2Shown = false;
     hintStage = 0;
-    $('level-name').textContent = level.id + ' ' + level.title;
-    $('level-goal').textContent = '目标：清空棋盘 · 最优 ' + level.par + ' 点' + (level.allowPlant ? ' · 可播种' : '');
+    $('level-name').textContent = lv.id + ' ' + lv.title;
+    $('level-goal').textContent = '目标：清空棋盘 · 最优 ' + lv.par + ' 点' + (lv.allowPlant ? ' · 可播种' : '');
     buildBoard();
     syncBoard();
     showScreen('game');
-    msg(level.intro);
-    if (level.id === '1-1') coachShow('棋盘上的圆点是棋子，数字是点数。点数到 4 就会爆炸！点击一颗 3 点棋子，给它 +1。');
+    msg(lv.intro);
+    if (lv.id === '1-1') coachShow('棋盘上的圆点是棋子，数字是点数。点数到 4 就会爆炸！点击一颗 3 点棋子，给它 +1。');
+  }
+
+  function startLevel(i) {
+    runCtx = { mode: 'campaign' };
+    loadLevel(LEVELS[i]);
   }
 
   function tryPlay(idx) {
@@ -391,6 +532,8 @@
     syncBoard();
     if (!game.over) return;
     if (game.win) {
+      if (runCtx && runCtx.mode === 'challenge') return showChallengeWin();
+      if (runCtx && runCtx.mode === 'daily') return showDailyWin();
       if (level.id === '1-1' && !coach2Shown) {
         coach2Shown = true;
         coachShow('爆！爆炸把同一横行和纵列上的棋子都 +1——另一颗 3 点棋子也到 4，跟着爆了。这就是连锁。');
@@ -399,6 +542,7 @@
       }
       showWin();
     } else {
+      if (runCtx && runCtx.mode === 'challenge') return showChallengeEnd();
       showLose();
     }
   }
@@ -474,6 +618,13 @@
   function closeOverlay() {
     overlay.classList.add('hidden');
   }
+  function starsPanelHtml(stars) {
+    let s = '';
+    for (let k = 1; k <= 3; k++) {
+      s += k <= stars ? '<span class="on">★</span>' : '<span class="off">★</span>';
+    }
+    return '<div class="stars">' + s + '</div>';
+  }
 
   function showWin() {
     const stars = starFor(level, game.placed);
@@ -481,14 +632,11 @@
     progress.stars[level.id] = Math.max(prev, stars);
     saveProgress();
     sfx.win();
+    if (stars === 3) confetti();
     const isLast = levelIdx === LEVELS.length - 1;
-    let starHtml = '';
-    for (let k = 1; k <= 3; k++) {
-      starHtml += k <= stars ? '<span class="on">★</span>' : '<span class="off">★</span>';
-    }
     showOverlay(
       '<h2 class="win">清空棋盘！</h2>' +
-      '<div class="stars">' + starHtml + '</div>' +
+      starsPanelHtml(stars) +
       '<div class="stats">投点 ' + game.placed + ' / 最优 ' + level.par +
       ' · 最大连锁 ' + Math.max(maxChain, 1) + ' 波 · 剩余 ' + game.bank + ' 点</div>' +
       '<div class="actions">' +
@@ -500,6 +648,83 @@
     );
     const next = $('ov-next');
     if (next) next.addEventListener('click', () => { closeOverlay(); startLevel(levelIdx + 1); });
+    $('ov-retry').addEventListener('click', () => { closeOverlay(); resetLevel(); });
+    $('ov-menu').addEventListener('click', () => { closeOverlay(); goMenu(); });
+  }
+
+  function showChallengeWin() {
+    const stars = starFor(level, game.placed);
+    runCtx.runPlaced += game.placed;
+    runCtx.runMaxChain = Math.max(runCtx.runMaxChain, maxChain);
+    const passed = runCtx.stage + 1;
+    const best = loadJSON(KEY_RUN, null);
+    if (!best || passed > best.stage) {
+      saveJSON(KEY_RUN, { stage: passed, date: CH.dateKey(new Date()) });
+    }
+    sfx.win();
+    if (stars === 3) confetti();
+    showOverlay(
+      '<h2 class="win">第 ' + passed + ' 关通过！</h2>' +
+      starsPanelHtml(stars) +
+      '<div class="stats">本关投点 ' + game.placed + ' / 最优 ' + level.par +
+      ' · 本轮最大连锁 ' + Math.max(runCtx.runMaxChain, 1) + ' 波</div>' +
+      '<div class="actions">' +
+      '<button class="ctl primary" id="ov-next">下一关 →</button>' +
+      '<button class="ctl" id="ov-menu">见好就收，回菜单</button>' +
+      '</div>'
+    );
+    $('ov-next').addEventListener('click', () => {
+      closeOverlay();
+      runCtx.stage = passed;
+      nextChallengeStage();
+    });
+    $('ov-menu').addEventListener('click', () => { closeOverlay(); goMenu(); });
+  }
+
+  function showChallengeEnd() {
+    sfx.lose();
+    const passed = runCtx.stage;
+    const best = loadJSON(KEY_RUN, null);
+    // 与本轮开跑前的纪录比较：胜利途中已实时更新 best，直接比会永远持平
+    const isRecord = passed > (runCtx.startBest || 0) && passed > 0;
+    if (isRecord && passed > 0) {
+      saveJSON(KEY_RUN, { stage: passed, date: CH.dateKey(new Date()) });
+    }
+    showOverlay(
+      '<h2 class="lose">本轮结束</h2>' +
+      '<div class="stats">通过 ' + passed + ' 关 · 累计投点 ' + runCtx.runPlaced +
+      ' · 最大连锁 ' + Math.max(runCtx.runMaxChain, 1) + ' 波' +
+      (isRecord && passed > 0 ? '<br><b>新纪录！</b>' : (best ? '<br>最佳：通过 ' + Math.max(best.stage, passed) + ' 关' : '')) +
+      '</div>' +
+      '<div class="actions">' +
+      '<button class="ctl primary" id="ov-retry">再来一轮</button>' +
+      '<button class="ctl" id="ov-menu">回菜单</button>' +
+      '</div>'
+    );
+    $('ov-retry').addEventListener('click', () => { closeOverlay(); startChallenge(); });
+    $('ov-menu').addEventListener('click', () => { closeOverlay(); goMenu(); });
+  }
+
+  function showDailyWin() {
+    const stars = starFor(level, game.placed);
+    let rec = loadJSON(KEY_DAILY, null);
+    const today = CH.dateKey(new Date());
+    if (rec && rec.date === today) {
+      rec.stars = Math.max(rec.stars || 0, stars);
+      saveJSON(KEY_DAILY, rec);
+    }
+    sfx.win();
+    if (stars === 3) confetti();
+    showOverlay(
+      '<h2 class="win">今日挑战完成</h2>' +
+      starsPanelHtml(stars) +
+      '<div class="stats">投点 ' + game.placed + ' / 最优 ' + level.par +
+      ' · 最大连锁 ' + Math.max(maxChain, 1) + ' 波<br>星数取当天最佳，可随时重打。</div>' +
+      '<div class="actions">' +
+      '<button class="ctl primary" id="ov-retry">再打一次</button>' +
+      '<button class="ctl" id="ov-menu">回菜单</button>' +
+      '</div>'
+    );
     $('ov-retry').addEventListener('click', () => { closeOverlay(); resetLevel(); });
     $('ov-menu').addEventListener('click', () => { closeOverlay(); goMenu(); });
   }
@@ -561,9 +786,10 @@
       '2. 棋子到 <b>4 点</b>即爆：本身消失，<b>同一横行和纵列</b>的棋子全部 +1。<br>' +
       '3. 被 +1 到 4 的棋子连锁爆炸，一波接一波。<br>' +
       '4. <b>清空棋盘</b>即胜；手牌用尽仍未清空则失败。<br>' +
-      '5. 星级按投点数算：<b>≤最优 3 星</b>，≤最优+1 得 2 星。<br>' +
-      '6. 提示免费、悔棋随便用；失败可看答案，布局固定背板再战。<br>' +
-      '7. 第五章解锁「播种」：点空格花 1 点放一颗新棋子，接住冲击波。<br>' +
+      '5. 战役 30 关：星级按投点数算，<b>≤最优 3 星</b>；第五章解锁「播种」。<br>' +
+      '6. 无限挑战：一关接一关越打越紧，失败即结算，冲击最深纪录。<br>' +
+      '7. 每日挑战：日期定关卡，全站同款，星数取当天最佳。<br>' +
+      '8. 提示免费、悔棋随便用；连锁动画中点棋盘可<b>加速</b>；右上角可<b>静音</b>。<br>' +
       '</div>' +
       '<div class="actions"><button class="ctl primary" id="ov-close">开始</button></div>'
     );
@@ -597,7 +823,14 @@
   $('help-button').addEventListener('click', showHelp);
   $('btn-menu').addEventListener('click', goMenu);
   $('btn-undo').addEventListener('click', undo);
-  $('btn-restart').addEventListener('click', () => { if (!busy) resetLevel(); });
+  $('btn-restart').addEventListener('click', () => {
+    if (busy) return;
+    if (runCtx && runCtx.mode === 'challenge' && game && game.over && !game.win) {
+      startChallenge();
+      return;
+    }
+    resetLevel();
+  });
   $('btn-hint').addEventListener('click', giveHint);
 
   const resetBtn = $('reset-progress');
@@ -605,6 +838,7 @@
     if (resetBtn.dataset.armed) {
       progress = { stars: {} };
       saveProgress();
+      localStorage.removeItem(KEY_DAILY);
       delete resetBtn.dataset.armed;
       resetBtn.textContent = '重置进度';
       renderMenu();
@@ -621,6 +855,11 @@
   /* ================= 键盘 ================= */
   document.addEventListener('keydown', e => {
     if (gameScreen.classList.contains('hidden')) return;
+    if (busy && (e.key === 'Enter' || e.key === ' ')) {
+      speedUp();
+      e.preventDefault();
+      return;
+    }
     if (coachVisible()) return;
     if (!overlay.classList.contains('hidden')) {
       if (e.key === 'Escape') closeOverlay();
@@ -644,6 +883,7 @@
   });
 
   /* ================= 启动 ================= */
+  syncSoundButton();
   renderMenu();
   showScreen('menu');
 })();

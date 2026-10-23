@@ -7,11 +7,12 @@
   <meta name="description" content="一颗点数，一排连锁。四点分裂、十字冲击的休闲解谜小游戏：30 关战役，合理分配手中的点数，清空棋盘。">
   <title>十字连爆 · 一颗点数，一排连锁</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23f0a83c'/%3E%3Cg fill='white'%3E%3Ccircle cx='32' cy='12' r='7'/%3E%3Ccircle cx='32' cy='52' r='7'/%3E%3Ccircle cx='12' cy='32' r='7'/%3E%3Ccircle cx='52' cy='32' r='7'/%3E%3Ccircle cx='32' cy='32' r='10'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=1.0.0">
+  <link rel="stylesheet" href="style.css?v=1.1.0">
   <script src="engine.js?v=1.0.0" defer></script>
   <script src="solver.js?v=1.0.0" defer></script>
   <script src="levels.js?v=1.0.0" defer></script>
-  <script src="app.js?v=1.0.0" defer></script>
+  <script src="challenge.js?v=1.0.0" defer></script>
+  <script src="app.js?v=1.1.0" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -21,6 +22,7 @@
         <span>十字连爆<small>CHESS CRASH</small></span>
       </button>
       <button id="help-button" class="quiet" type="button">玩法说明 <span aria-hidden="true">↗</span></button>
+      <button id="sound-button" class="quiet" type="button" aria-label="音效开关">🔊</button>
     </header>
     <main>
       <section id="screen-menu" class="screen">
@@ -31,6 +33,7 @@
           <div class="total-stars" id="total-stars">★ 0 / 90</div>
         </div>
         <div id="chapters" class="chapters"></div>
+        <div id="challenge-cards" class="challenge-cards"></div>
         <div class="menu-foot">
           <button id="reset-progress" class="quiet" type="button">重置进度</button>
         </div>
@@ -42,9 +45,15 @@
             <span id="level-name" class="level-name"></span>
             <span id="level-goal" class="level-goal"></span>
           </div>
-          <div class="hud-bank" id="bank-badge">
-            <b id="bank-num">0</b>
-            <span>可用点数</span>
+          <div class="hud-group">
+            <div class="hud-bank" id="bank-badge">
+              <b id="bank-num">0</b>
+              <span>可用点数</span>
+            </div>
+            <div class="hud-pieces" id="pieces-badge">
+              <b id="pieces-num">0</b>
+              <span>剩余棋子</span>
+            </div>
           </div>
         </div>
         <div class="board-wrap" id="board-wrap">

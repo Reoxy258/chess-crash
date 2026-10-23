@@ -181,6 +181,46 @@ button {
 }
 
 .menu-foot { text-align: center; padding: 18px 0 6px; }
+
+/* ---------------- 挑战入口 ---------------- */
+.challenge-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 20px 0 4px;
+}
+.challenge-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  text-align: center;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.challenge-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(43,52,64,.08);
+}
+.challenge-card .cc-title { font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+.challenge-card .cc-sub { font-size: 11px; color: var(--ink-soft); line-height: 1.7; }
+.challenge-card.today .cc-title { color: var(--accent); }
+.challenge-card.done { border-color: var(--p2); background: #fffaf0; }
+
+/* ---------------- 彩带（三星庆祝） ---------------- */
+.confetti {
+  position: fixed;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 40;
+  animation: confettifall 1.5s ease-in forwards;
+}
+@keyframes confettifall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(560deg); opacity: 0; }
+}
 .foot {
   text-align: center;
   color: var(--ink-soft);
@@ -199,26 +239,29 @@ button {
 .hud-left { display: flex; flex-direction: column; min-width: 0; }
 .level-name { font-size: 16px; font-weight: 700; }
 .level-goal { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.hud-group { display: flex; gap: 8px; align-items: stretch; }
 
-.hud-bank {
+.hud-bank, .hud-pieces {
   display: flex;
   flex-direction: column;
   align-items: center;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 6px 16px;
-  min-width: 88px;
+  padding: 6px 14px;
+  min-width: 76px;
   transition: transform .15s ease;
 }
-.hud-bank b {
-  font-size: 26px;
+.hud-bank b, .hud-pieces b {
+  font-size: 24px;
   line-height: 1.1;
   color: var(--accent);
 }
-.hud-bank span { font-size: 10px; color: var(--ink-soft); }
+.hud-pieces b { color: var(--ink-soft); font-size: 20px; }
+.hud-bank span, .hud-pieces span { font-size: 10px; color: var(--ink-soft); }
 .hud-bank.tick { transform: scale(1.08); }
 .hud-bank.empty b { color: var(--bad); }
+.hud-pieces.empty b { color: var(--bad); }
 
 .board-wrap {
   position: relative;
@@ -477,6 +520,17 @@ button {
 .coach-box p { margin: 0 0 12px; font-size: 14px; line-height: 1.8; }
 
 .hidden { display: none !important; }
+
+/* ---------------- 动效减弱偏好 ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  .piece.p3 { animation: none; }
+  .piece.bump, .piece.blast { animation-duration: .06s; }
+  .board-wrap.shake { animation: none; }
+  .chain-badge { animation: none; }
+  .confetti { animation-duration: .5s; }
+  .overlay-box { animation: none; }
+  .overlay .stars .on { animation: none; }
+}
 
 /* ---------------- 响应式 ---------------- */
 @media (max-width: 390px) {
