@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.4.0）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.3.1）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -23,22 +23,11 @@
   const unlocked = window.CC_UNLOCKED;
   const CH = window.CC_CHALLENGE;
 
-  /* kind → 棋子形状 class（0 = 普通圆石，无 class） */
+  /* kind → 棋子形状 class（0 = 普通圆点，无 class） */
   const KIND_CLASS = ['', 'k-row', 'k-col', 'k-tri-u', 'k-tri-d', 'k-tri-l', 'k-tri-r', 'k-sq'];
   /* kind → 冲击光点配色 class（0 = 默认橙） */
   const SPARK_CLASS = ['', 'sk-row', 'sk-col', 'sk-tri', 'sk-tri', 'sk-tri', 'sk-tri', 'sk-sq'];
   const kindClassOf = v => KIND_CLASS[E.kindOf(v)] || '';
-
-  /* 棋子渲染（v1.4.0 · split-chess 同款圆石）：红/蓝底由 .hot 区分，
-   * 点数用白色小圆圈（.pips/.pip，骰子式排布）表示，不再写数字。
-   * dataset.v 供 flySpark 到达时读值 +1。 */
-  function setPiece(p, points, kc) {
-    p.className = 'piece' + (kc ? ' ' + kc : '') + (points >= 3 ? ' hot' : '');
-    p.innerHTML = '<span class="pips n' + points + '" aria-hidden="true">' +
-      '<i class="pip"></i>'.repeat(points) + '</span>';
-    p.dataset.v = String(points);
-    p.setAttribute('aria-label', points + ' 点棋子');
-  }
 
   const $ = id => document.getElementById(id);
   const menuScreen = $('screen-menu');
@@ -330,7 +319,9 @@
       const v = game.cells[i];
       if (v > 0) {
         const p = document.createElement('div');
-        setPiece(p, E.pointsOf(v), kindClassOf(v));
+        const kc = kindClassOf(v);
+        p.className = 'piece p' + E.pointsOf(v) + (kc ? ' ' + kc : '');
+        p.textContent = String(E.pointsOf(v));
         cell.appendChild(p);
       } else if (game.allowPlant) {
         cell.classList.add('plantable');
@@ -358,7 +349,9 @@
           p = document.createElement('div');
           cell.appendChild(p);
         }
-        setPiece(p, E.pointsOf(v), kindClassOf(v));
+        const kc = kindClassOf(v);
+        p.className = 'piece p' + E.pointsOf(v) + (kc ? ' ' + kc : '');
+        p.textContent = String(E.pointsOf(v));
       } else if (p) {
         p.remove();
       }
@@ -397,24 +390,34 @@
     const p = pieceEl(i);
     if (!p) return;
     const kc = (p.className.match(/k-[a-z-]+/) || [''])[0];
-    setPiece(p, count, kc);
+    p.className = 'piece p' + count + (kc ? ' ' + kc : '');
+    p.textContent = String(count);
     void p.offsetWidth;
     p.classList.add('bump');
     sfx.hit();
   }
 
-  /* 分裂演出（v1.4.0 · split-chess 风格）：棋子闪光淡出，格子亮警戒环（红石红环/蓝石蓝环） */
   function blastPiece(i, rects, wrapRect) {
     const cell = cellEl(i);
     const p = pieceEl(i);
-    const red = p ? p.classList.contains('hot') : false;
     if (p) {
       p.classList.add('blast');
-      setTimeout(() => p.remove(), 200);
+      setTimeout(() => p.remove(), 240);
     }
-    if (cell) {
-      cell.classList.add('burst', red ? 'burst-red' : 'burst-blue');
-      setTimeout(() => cell.classList.remove('burst', 'burst-red', 'burst-blue'), 360);
+    const c = cellCenter(i, rects, wrapRect);
+    for (let k = 0; k < 9; k++) {
+      const shard = document.createElement('div');
+      shard.className = 'shard';
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 26 + Math.random() * 44;
+      shard.style.left = (c.x - 3.5) + 'px';
+      shard.style.top = (c.y - 3.5) + 'px';
+      shard.style.background = Math.random() < 0.5 ? '#f0a83c' : '#e8542d';
+      boardWrap.appendChild(shard);
+      void shard.offsetWidth;
+      shard.style.transform = 'translate(' + Math.cos(ang) * dist + 'px,' + Math.sin(ang) * dist + 'px) rotate(' + (Math.random() * 180) + 'deg)';
+      shard.style.opacity = '0';
+      setTimeout(() => shard.remove(), 420);
     }
   }
 
@@ -436,7 +439,7 @@
         spark.remove();
         const p = pieceEl(to);
         if (p) {
-          const next = Number(p.dataset.v || 1) + 1;
+          const next = Number(p.textContent) + 1;
           bumpPiece(to, Math.min(next, 3));
         }
         resolve();
@@ -454,7 +457,8 @@
     if (trace.place.planted) {
       const cell = cellEl(idx);
       const p = document.createElement('div');
-      setPiece(p, 1, '');
+      p.className = 'piece p1';
+      p.textContent = '1';
       cell.appendChild(p);
       void p.offsetWidth;
       p.classList.add('bump');
@@ -465,7 +469,8 @@
       if (p) {
         const next = E.pointsOf(trace.place.to);
         const kc = KIND_CLASS[trace.place.kind] || '';
-        setPiece(p, Math.min(next, 3), kc);
+        p.className = 'piece p' + Math.min(next, 3) + (kc ? ' ' + kc : '');
+        p.textContent = String(next);
         void p.offsetWidth;
         p.classList.add('bump');
       }
@@ -527,7 +532,7 @@
     syncBoard();
     showScreen('game');
     msg(lv.intro);
-    if (lv.id === '1-1') coachShow('棋盘上的圆石是棋子，石上的白色小圆圈数就是点数。点数到 4 就会爆炸：蓝石安全，红石只差一击。点击那颗红石（3 点），给它 +1！');
+    if (lv.id === '1-1') coachShow('棋盘上的圆点是棋子，数字是点数。点数到 4 就会爆炸！点击一颗 3 点棋子，给它 +1。');
   }
 
   function startLevel(i) {

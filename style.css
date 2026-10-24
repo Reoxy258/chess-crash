@@ -1,6 +1,6 @@
 /* 十字连爆 · chess-crash — 响应式休闲解谜界面
- * 棋子：split-chess 同款圆石质感（蓝石 1-2 点 / 红石 3 点将爆），白色小圆圈表示点数
- * 演出：分裂格内扩散警戒环 + 亮度闪光、十字光点按距离飞行、连锁徽章、星级弹入
+ * 点数即色温：1 天蓝（凉）→ 2 琥珀（暖）→ 3 赤红（将爆预警，呼吸脉冲）
+ * 演出：十字光点按距离飞行、爆裂粒子、震屏、连锁徽章、星级弹入
  */
 
 :root {
@@ -289,7 +289,7 @@ button {
   position: relative;
   aspect-ratio: 1;
   border-radius: 10px;
-  background: linear-gradient(145deg, #fefffc, #f2f5ed);
+  background: #eef0ea;
 }
 .cell.plantable::after {
   content: "";
@@ -299,155 +299,80 @@ button {
   border: 2px dashed rgba(79, 163, 209, .5);
 }
 
-/* ---------------- 棋子（v1.4.0 · split-chess 同款圆石：红/蓝底 + 白色小圆点） ---------------- */
 .piece {
   position: absolute;
   inset: 6%;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  /* 蓝石（1-2 点）：split-chess 圆石渐变（高光 + 球面 + 描边投影） */
-  --stone-light: #a4d3ff;
-  --stone-mid: #4389ed;
-  --stone-deep: #194da9;
-  --stone-rim: #295ba8;
-  --stone-edge: rgba(40, 97, 184, .4);
-  --stone-shadow: rgba(37, 83, 144, .28);
-  background:
-    radial-gradient(ellipse at 31% 22%, rgba(255,255,255,.94) 0%, rgba(255,255,255,.33) 15%, rgba(255,255,255,0) 44%),
-    radial-gradient(circle at 36% 28%, var(--stone-light), var(--stone-mid) 53%, var(--stone-deep) 100%);
-  border: 1px solid var(--stone-edge);
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.69), inset 0 -2px 3px rgba(21,54,105,.27), 0 2px 0 var(--stone-rim), 0 4px 5px -1px var(--stone-shadow);
+  font-weight: 800;
+  font-size: clamp(12px, 4.6vw, 22px);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .18), 0 2px 4px rgba(43, 52, 64, .18);
   transition: background-color .18s ease, transform .18s ease;
 }
-/* 红石（3 点将爆预警） */
-.piece.hot {
-  --stone-light: #ffc9b0;
-  --stone-mid: #e8562d;
-  --stone-deep: #a1301a;
-  --stone-rim: #ac3d24;
-  --stone-edge: rgba(178, 74, 45, .4);
-  --stone-shadow: rgba(165, 58, 29, .28);
-}
+.piece.p1 { background: var(--p1); --pc: var(--p1); }
+.piece.p2 { background: var(--p2); --pc: var(--p2); }
+.piece.p3 { background: var(--p3); --pc: var(--p3); }
+/* 状态脉冲用 :where 降优先级，让 bump/blast 等瞬时动画随时接管 */
+:where(.piece.p3) { animation: p3pulse 1.8s ease infinite; }
 
-/* 白色小圆点（点数）：骰子式排布 */
-.pips { position: absolute; inset: 0; pointer-events: none; }
-.pip {
-  position: absolute;
-  height: var(--pip, 27%);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 28%, #fff, #f6f9ff 55%, #dee8f2 100%);
-  box-shadow: 0 1px 2px rgba(15, 40, 85, .35), inset 0 -1px 1px rgba(150, 168, 195, .5);
-}
-.pips.n1 .pip { left: 50%; top: 50%; }
-.pips.n2 .pip:nth-child(1) { left: 30%; top: 70%; }
-.pips.n2 .pip:nth-child(2) { left: 70%; top: 30%; }
-.pips.n3 .pip:nth-child(1) { left: 50%; top: 27%; }
-.pips.n3 .pip:nth-child(2) { left: 28%; top: 73%; }
-.pips.n3 .pip:nth-child(3) { left: 72%; top: 73%; }
-
-/* 将爆预警（split-chess critical）：红石所在格子微红 + 虚线警戒圈 */
-.cell:has(.piece.hot) { background: linear-gradient(145deg, #fff6f0, #ffe9de); }
-.cell:has(.piece.hot)::before {
-  content: "";
-  position: absolute;
-  inset: 9%;
-  border: 1.5px dashed rgba(200, 76, 44, .45);
-  border-radius: 8px;
-  pointer-events: none;
-}
-
-/* ---- 特殊形状棋：横线/竖线/方框（圆石质感） ---- */
-.piece.k-row { inset: 17% 3%; border-radius: 999px; --pip: 44%; }
-.piece.k-col { inset: 3% 17%; border-radius: 999px; --pip: 27%; }
-.piece.k-sq { inset: 5%; border-radius: 22%; }
-/* 横线：白点沿中轴横排 */
-.k-row .pips.n1 .pip { left: 50%; top: 50%; }
-.k-row .pips.n2 .pip:nth-child(1) { left: 33%; top: 50%; }
-.k-row .pips.n2 .pip:nth-child(2) { left: 67%; top: 50%; }
-.k-row .pips.n3 .pip:nth-child(1) { left: 26%; top: 50%; }
-.k-row .pips.n3 .pip:nth-child(2) { left: 50%; top: 50%; }
-.k-row .pips.n3 .pip:nth-child(3) { left: 74%; top: 50%; }
-/* 竖线：白点沿中轴竖排 */
-.k-col .pips.n1 .pip { left: 50%; top: 50%; }
-.k-col .pips.n2 .pip:nth-child(1) { left: 50%; top: 33%; }
-.k-col .pips.n2 .pip:nth-child(2) { left: 50%; top: 67%; }
-.k-col .pips.n3 .pip:nth-child(1) { left: 50%; top: 26%; }
-.k-col .pips.n3 .pip:nth-child(2) { left: 50%; top: 50%; }
-.k-col .pips.n3 .pip:nth-child(3) { left: 50%; top: 74%; }
-
-/* ---- 三角：形状画在 ::before（clip-path 只裁形状层，圆石渐变），白点靠宽边 ---- */
+/* ---- 特殊形状棋（v1.2.0）：横线/竖线/三角 T/方框 ---- */
+.piece.k-row { inset: 17% 3%; border-radius: 999px; }
+.piece.k-col { inset: 3% 17%; border-radius: 999px; }
+.piece.k-sq { inset: 5%; border-radius: 18%; }
+/* 三角（v1.3.1 重绘）：形状画在 ::before（clip-path 只裁形状层），
+   数字不参与裁剪——放大到 .8em，按各朝向的宽边重心排版，加柔和投影。
+   clip-path 会剪掉 box-shadow：三角投影用 drop-shadow，p3 亮度脉冲也走 ::before。 */
 .piece.k-tri-u, .piece.k-tri-d, .piece.k-tri-l, .piece.k-tri-r {
-  background: transparent;
-  border: none;
+  background: transparent;          /* 底色交给 ::before（经 --pc 取点数色） */
+  border-radius: 26%;               /* 光标/提示描边走圆角矩形，不再被裁剪 */
   box-shadow: none;
-  --pip: 24%;
+  animation: none;                  /* 预警脉冲在 ::before 上，div 让位给 bump/blast */
+  font-size: .8em;
+  text-shadow: 0 1px 2px rgba(30, 36, 44, .45);
 }
+.piece.k-tri-u { align-items: flex-end; padding-bottom: 12%; }
+.piece.k-tri-d { align-items: flex-start; padding-top: 12%; }
+.piece.k-tri-l { justify-content: flex-end; padding-right: 10%; }
+.piece.k-tri-r { justify-content: flex-start; padding-left: 10%; }
 .piece.k-tri-u::before, .piece.k-tri-d::before, .piece.k-tri-l::before, .piece.k-tri-r::before {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse at 31% 22%, rgba(255,255,255,.55) 0%, rgba(255,255,255,.15) 18%, rgba(255,255,255,0) 46%),
-    radial-gradient(circle at 36% 28%, var(--stone-light), var(--stone-mid) 53%, var(--stone-deep) 100%);
-  filter: drop-shadow(0 2px 2px rgba(43, 52, 64, .35));
+  background: var(--pc, var(--p2));
+  filter: drop-shadow(0 2px 2px rgba(43, 52, 64, .3));
+  transition: background-color .18s ease;
 }
 .piece.k-tri-u::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .piece.k-tri-d::before { clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .piece.k-tri-l::before { clip-path: polygon(0 50%, 100% 0, 100% 100%); }
 .piece.k-tri-r::before { clip-path: polygon(0 0, 0 100%, 100% 50%); }
-/* 三角白点：▲ 底边带 / ▼ 顶边带 / ◀ 右带 / ▶ 左带 */
-.k-tri-u .pips.n1 .pip { left: 50%; top: 72%; }
-.k-tri-u .pips.n2 .pip:nth-child(1) { left: 38%; top: 74%; }
-.k-tri-u .pips.n2 .pip:nth-child(2) { left: 62%; top: 74%; }
-.k-tri-u .pips.n3 .pip:nth-child(1) { left: 33%; top: 76%; }
-.k-tri-u .pips.n3 .pip:nth-child(2) { left: 50%; top: 61%; }
-.k-tri-u .pips.n3 .pip:nth-child(3) { left: 67%; top: 76%; }
-.k-tri-d .pips.n1 .pip { left: 50%; top: 28%; }
-.k-tri-d .pips.n2 .pip:nth-child(1) { left: 38%; top: 26%; }
-.k-tri-d .pips.n2 .pip:nth-child(2) { left: 62%; top: 26%; }
-.k-tri-d .pips.n3 .pip:nth-child(1) { left: 33%; top: 24%; }
-.k-tri-d .pips.n3 .pip:nth-child(2) { left: 50%; top: 39%; }
-.k-tri-d .pips.n3 .pip:nth-child(3) { left: 67%; top: 24%; }
-.k-tri-l .pips.n1 .pip { left: 72%; top: 50%; }
-.k-tri-l .pips.n2 .pip:nth-child(1) { left: 74%; top: 38%; }
-.k-tri-l .pips.n2 .pip:nth-child(2) { left: 74%; top: 62%; }
-.k-tri-l .pips.n3 .pip:nth-child(1) { left: 76%; top: 33%; }
-.k-tri-l .pips.n3 .pip:nth-child(2) { left: 61%; top: 50%; }
-.k-tri-l .pips.n3 .pip:nth-child(3) { left: 76%; top: 67%; }
-.k-tri-r .pips.n1 .pip { left: 28%; top: 50%; }
-.k-tri-r .pips.n2 .pip:nth-child(1) { left: 26%; top: 38%; }
-.k-tri-r .pips.n2 .pip:nth-child(2) { left: 26%; top: 62%; }
-.k-tri-r .pips.n3 .pip:nth-child(1) { left: 24%; top: 33%; }
-.k-tri-r .pips.n3 .pip:nth-child(2) { left: 39%; top: 50%; }
-.k-tri-r .pips.n3 .pip:nth-child(3) { left: 24%; top: 67%; }
+:where(.piece.k-tri-u.p3)::before, :where(.piece.k-tri-d.p3)::before,
+:where(.piece.k-tri-l.p3)::before, :where(.piece.k-tri-r.p3)::before {
+  animation: tripulse 1.8s ease infinite;
+}
+@keyframes tripulse {
+  0%, 100% { filter: drop-shadow(0 2px 2px rgba(43,52,64,.3)) brightness(1); }
+  55% { filter: drop-shadow(0 2px 2px rgba(43,52,64,.3)) brightness(1.3); }
+}
 
-.piece.bump { animation: bump .2s ease, stoneflash .4s ease; }
+@keyframes p3pulse {
+  0%, 100% { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 2px 4px rgba(43,52,64,.18), 0 0 0 0 rgba(232,84,45,.45); }
+  55% { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 2px 4px rgba(43,52,64,.18), 0 0 0 7px rgba(232,84,45,0); }
+}
+.piece.bump { animation: bump .2s ease; }
 @keyframes bump {
   0% { transform: scale(1); }
   40% { transform: scale(1.28); }
   100% { transform: scale(1); }
 }
-@keyframes stoneflash {
-  0% { filter: brightness(1.25); }
-  100% { filter: brightness(1); }
-}
-/* 分裂（split-chess 风格）：棋子闪光淡出 + 所在格扩散警戒环 */
-.piece.blast { animation: blast .2s ease-out forwards; }
+.piece.blast { animation: blast .22s ease forwards; }
 @keyframes blast {
   0% { transform: scale(1); filter: brightness(1); }
-  30% { transform: scale(1.12); filter: brightness(1.55); }
-  100% { transform: scale(.5); filter: brightness(1.25); opacity: 0; }
-}
-.cell.burst { animation: cburst .34s ease-out; }
-.cell.burst-blue { color: #4389ed; }
-.cell.burst-red { color: #e8562d; }
-@keyframes cburst {
-  0% { box-shadow: inset 0 0 0 3px currentColor; }
-  100% { box-shadow: inset 0 0 0 22px transparent; }
+  35% { transform: scale(1.42); filter: brightness(2.4); }
+  100% { transform: scale(.1); filter: brightness(3); opacity: 0; }
 }
 .cell.focus .piece { outline: 3px solid var(--accent); outline-offset: 2px; }
 .cell.hint-glow .piece { animation: hintglow 1s ease infinite; }
@@ -495,6 +420,19 @@ button {
 .spark.sk-sq {
   background: radial-gradient(circle, #fff 0%, #3aa76d 55%, rgba(58,167,109,0) 100%);
   box-shadow: 0 0 12px 3px rgba(58, 167, 109, .55);
+}
+
+/* 爆裂碎片 */
+.shard {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--p2);
+  pointer-events: none;
+  z-index: 4;
+  opacity: .95;
+  transition: transform .38s ease-out, opacity .38s ease-out;
 }
 
 .chain-badge {
@@ -645,8 +583,9 @@ button {
 
 /* ---------------- 动效减弱偏好 ---------------- */
 @media (prefers-reduced-motion: reduce) {
+  .piece.p3 { animation: none; }
+  .piece.k-tri-u.p3::before, .piece.k-tri-d.p3::before, .piece.k-tri-l.p3::before, .piece.k-tri-r.p3::before { animation: none; }
   .piece.bump, .piece.blast { animation-duration: .06s; }
-  .cell.burst { animation-duration: .06s; }
   .board-wrap.shake { animation: none; }
   .chain-badge { animation: none; }
   .confetti { animation-duration: .5s; }
