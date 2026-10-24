@@ -312,24 +312,45 @@ button {
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .18), 0 2px 4px rgba(43, 52, 64, .18);
   transition: background-color .18s ease, transform .18s ease;
 }
-.piece.p1 { background: var(--p1); }
-.piece.p2 { background: var(--p2); }
-.piece.p3 { background: var(--p3); animation: p3pulse 1.8s ease infinite; }
+.piece.p1 { background: var(--p1); --pc: var(--p1); }
+.piece.p2 { background: var(--p2); --pc: var(--p2); }
+.piece.p3 { background: var(--p3); --pc: var(--p3); }
+/* 状态脉冲用 :where 降优先级，让 bump/blast 等瞬时动画随时接管 */
+:where(.piece.p3) { animation: p3pulse 1.8s ease infinite; }
 
 /* ---- 特殊形状棋（v1.2.0）：横线/竖线/三角 T/方框 ---- */
 .piece.k-row { inset: 17% 3%; border-radius: 999px; }
 .piece.k-col { inset: 3% 17%; border-radius: 999px; }
 .piece.k-sq { inset: 5%; border-radius: 18%; }
-.piece.k-tri-u { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; align-items: flex-end; padding-bottom: 9%; font-size: .72em; }
-.piece.k-tri-d { clip-path: polygon(0 0, 100% 0, 50% 100%); border-radius: 0; align-items: flex-start; padding-top: 9%; font-size: .72em; }
-.piece.k-tri-l { clip-path: polygon(0 50%, 100% 0, 100% 100%); border-radius: 0; justify-content: flex-end; padding-right: 12%; font-size: .72em; }
-.piece.k-tri-r { clip-path: polygon(0 0, 0 100%, 100% 50%); border-radius: 0; justify-content: flex-start; padding-left: 12%; font-size: .72em; }
-/* clip-path 会剪掉 box-shadow：三角改用 drop-shadow 投影 + 亮度脉冲 */
+/* 三角（v1.3.1 重绘）：形状画在 ::before（clip-path 只裁形状层），
+   数字不参与裁剪——放大到 .8em，按各朝向的宽边重心排版，加柔和投影。
+   clip-path 会剪掉 box-shadow：三角投影用 drop-shadow，p3 亮度脉冲也走 ::before。 */
 .piece.k-tri-u, .piece.k-tri-d, .piece.k-tri-l, .piece.k-tri-r {
+  background: transparent;          /* 底色交给 ::before（经 --pc 取点数色） */
+  border-radius: 26%;               /* 光标/提示描边走圆角矩形，不再被裁剪 */
   box-shadow: none;
-  filter: drop-shadow(0 2px 2px rgba(43, 52, 64, .3));
+  animation: none;                  /* 预警脉冲在 ::before 上，div 让位给 bump/blast */
+  font-size: .8em;
+  text-shadow: 0 1px 2px rgba(30, 36, 44, .45);
 }
-.piece.k-tri-u.p3, .piece.k-tri-d.p3, .piece.k-tri-l.p3, .piece.k-tri-r.p3 {
+.piece.k-tri-u { align-items: flex-end; padding-bottom: 12%; }
+.piece.k-tri-d { align-items: flex-start; padding-top: 12%; }
+.piece.k-tri-l { justify-content: flex-end; padding-right: 10%; }
+.piece.k-tri-r { justify-content: flex-start; padding-left: 10%; }
+.piece.k-tri-u::before, .piece.k-tri-d::before, .piece.k-tri-l::before, .piece.k-tri-r::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--pc, var(--p2));
+  filter: drop-shadow(0 2px 2px rgba(43, 52, 64, .3));
+  transition: background-color .18s ease;
+}
+.piece.k-tri-u::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.piece.k-tri-d::before { clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.piece.k-tri-l::before { clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.piece.k-tri-r::before { clip-path: polygon(0 0, 0 100%, 100% 50%); }
+:where(.piece.k-tri-u.p3)::before, :where(.piece.k-tri-d.p3)::before,
+:where(.piece.k-tri-l.p3)::before, :where(.piece.k-tri-r.p3)::before {
   animation: tripulse 1.8s ease infinite;
 }
 @keyframes tripulse {
@@ -563,7 +584,7 @@ button {
 /* ---------------- 动效减弱偏好 ---------------- */
 @media (prefers-reduced-motion: reduce) {
   .piece.p3 { animation: none; }
-  .piece.k-tri-u.p3, .piece.k-tri-d.p3, .piece.k-tri-l.p3, .piece.k-tri-r.p3 { animation: none; }
+  .piece.k-tri-u.p3::before, .piece.k-tri-d.p3::before, .piece.k-tri-l.p3::before, .piece.k-tri-r.p3::before { animation: none; }
   .piece.bump, .piece.blast { animation-duration: .06s; }
   .board-wrap.shake { animation: none; }
   .chain-badge { animation: none; }

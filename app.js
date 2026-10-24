@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.3.0）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.3.1）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
