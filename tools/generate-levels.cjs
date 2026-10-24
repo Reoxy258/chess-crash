@@ -30,7 +30,11 @@ const CH2 = '第二章 · 引爆顺序';
 const CH3 = '第三章 · 手紧点数';
 const CH4 = '第四章 · 队形与对齐';
 const CH5 = '第五章 · 空降播种';
-const CH6 = '终章 · 综合爆发';
+const CH6 = '第六章 · 综合爆发';
+const CH7 = '第七章 · 直线风暴';
+const CH8 = '第八章 · T 形三锋';
+const CH9 = '第九章 · 方阵内爆';
+const CH10 = '终章 · 万形齐发';
 
 const SPECS = [
   // 第一章：认识分裂（6×6，单雷管起步）
@@ -68,15 +72,43 @@ const SPECS = [
   { id: '5-4', chapter: 5, title: '补位专家', intro: '哪里断链补哪里。', size: 7, bank: 6, par: 4, targetB: 12, weights: [2, 2, 1], lineBias: 0.7, requirePlant: true, allowPlant: true },
   { id: '5-5', chapter: 5, title: '天降奇兵', intro: '章末考核：种对位置，一爆到底。', size: 7, bank: 6, par: 4, targetB: 12, weights: [2, 2, 1], lineBias: 0.75, requirePlant: true, allowPlant: true },
 
-  // 终章：综合爆发（大棋盘、混合手法）
+  // 第六章：综合爆发（大棋盘、混合手法）
   { id: '6-1', chapter: 6, title: '大棋盘', intro: '更大的战场，波及全场。', size: 8, bank: 5, par: 4, targetB: 20, weights: [1, 2, 2] },
   { id: '6-2', chapter: 6, title: '全面战争', intro: '火力全开。', size: 8, bank: 6, par: 5, targetB: 22, weights: [1, 2, 2] },
   { id: '6-3', chapter: 6, title: '最后的预算', intro: '手牌又紧了。', size: 9, bank: 6, par: 5, targetB: 24, weights: [1, 2, 1] },
   { id: '6-4', chapter: 6, title: '精确打击', intro: '每一颗都算好。', size: 9, bank: 5, par: 5, targetB: 22, weights: [1, 2, 1] },
-  { id: '6-5', chapter: 6, title: '终局', intro: '三十关的最后一爆。', size: 9, bank: 6, par: 6, targetB: 24, weights: [1, 2, 1] }
+  { id: '6-5', chapter: 6, title: '终局', intro: '三十关的最后一爆。', size: 9, bank: 6, par: 6, targetB: 24, weights: [1, 2, 1] },
+
+  // 第七章：直线风暴（横线 ▬ 只扫整行 / 竖线 ▮ 只灌整列）
+  { id: '7-1', chapter: 7, title: '横扫千军', intro: '新形状 ▬ 横线：爆开只扫同一横行。', size: 6, bank: 1, par: 1, fixed: ['......', '.C333.', '......', '......', '......', '......'] },
+  { id: '7-2', chapter: 7, title: '纵贯线', intro: '新形状 ▮ 竖线：爆开只灌同一纵列。', size: 6, bank: 1, par: 1, fixed: ['...F..', '...3..', '...3..', '...3..', '...3..', '......'] },
+  { id: '7-3', chapter: 7, title: '直来直往', intro: '横竖混编：看清每颗的扫法再投点。', size: 6, bank: 3, par: 2, targetB: 10, weights: [1, 2, 3], kinds: [1, 2], kindShare: 0.4 },
+  { id: '7-4', chapter: 7, title: '一线生机', intro: '一条直线，救活全局。', size: 7, bank: 4, par: 3, targetB: 14, weights: [1, 2, 2], kinds: [1, 2], kindShare: 0.45 },
+  { id: '7-5', chapter: 7, title: '笔直的愤怒', intro: '章末考核：直线与十字共舞。', size: 7, bank: 5, par: 3, targetB: 16, weights: [1, 2, 2], kinds: [1, 2], kindShare: 0.5, lineBias: 0.5 },
+
+  // 第八章：T 形三锋（三角 ▲▼◀▶：整行/列 + 角朝半臂）
+  { id: '8-1', chapter: 8, title: 'T 字教头', intro: '新形状 ▲ 三角：爆开扫整行，再加角朝方向的半列——T 字形。', size: 6, bank: 1, par: 1, fixed: ['...3..', '.3.I3.', '......', '......', '......', '......'] },
+  { id: '8-2', chapter: 8, title: '朝向的艺术', intro: '三角看朝向：角指哪边，T 就伸向哪边。', size: 6, bank: 4, par: 2, targetB: 10, weights: [1, 2, 3], kinds: [3, 4, 5, 6], kindShare: 0.5 },
+  { id: '8-3', chapter: 8, title: '三锋阵', intro: '让几个方向的锋刃同时出鞘。', size: 7, bank: 5, par: 3, targetB: 14, weights: [1, 2, 2], kinds: [3, 4, 5, 6], kindShare: 0.45 },
+  { id: '8-4', chapter: 8, title: '锋线交叠', intro: 'T 与十字交叠，波网更密。', size: 7, bank: 5, par: 4, targetB: 16, weights: [1, 2, 2], kinds: [3, 4, 5, 6], kindShare: 0.4, lineBias: 0.4 },
+  { id: '8-5', chapter: 8, title: '锋芒毕露', intro: '章末考核：四面三角齐发。', size: 8, bank: 5, par: 4, targetB: 18, weights: [1, 2, 2], kinds: [3, 4, 5, 6], kindShare: 0.5, lineBias: 0.45 },
+
+  // 第九章：方阵内爆（方框 ■：周围一圈 8 邻域）
+  { id: '9-1', chapter: 9, title: '内爆光环', intro: '新形状 ■ 方框：爆开只轰自己周围一圈。', size: 6, bank: 1, par: 1, fixed: ['......', '.333..', '.3U3..', '.333..', '......', '......'] },
+  { id: '9-2', chapter: 9, title: '连环马', intro: '一个圈的火种，引燃下一个。', size: 6, bank: 3, par: 2, targetB: 10, weights: [1, 2, 3], kinds: [7], kindShare: 0.4 },
+  { id: '9-3', chapter: 9, title: '蜂窝矩阵', intro: '方框相邻成网，一爆传一爆。', size: 7, bank: 5, par: 3, targetB: 14, weights: [1, 2, 2], kinds: [7], kindShare: 0.45 },
+  { id: '9-4', chapter: 9, title: '圈内圈外', intro: '够不着的棋子，得另想办法。', size: 7, bank: 5, par: 4, targetB: 16, weights: [1, 2, 2], kinds: [7], kindShare: 0.4 },
+  { id: '9-5', chapter: 9, title: '天罗地网', intro: '章末考核：方阵 + 直线 + 十字。', size: 8, bank: 6, par: 4, targetB: 18, weights: [1, 2, 2], kinds: [1, 2, 3, 4, 5, 6, 7], kindShare: 0.45 },
+
+  // 终章二：万形齐发（全部形状混合）
+  { id: '10-1', chapter: 10, title: '万形登场', intro: '所有形状同场：十字、直线、三角、方框。', size: 8, bank: 5, par: 4, targetB: 18, weights: [1, 2, 2], kinds: [1, 2, 3, 4, 5, 6, 7], kindShare: 0.4 },
+  { id: '10-2', chapter: 10, title: '形状协奏', intro: '让每种形状都发一次力。', size: 8, bank: 6, par: 5, targetB: 20, weights: [1, 2, 2], kinds: [1, 2, 3, 4, 5, 6, 7], kindShare: 0.45 },
+  { id: '10-3', chapter: 10, title: '大衍阵', intro: '九路棋盘，万形齐张。', size: 9, bank: 6, par: 5, targetB: 22, weights: [1, 2, 1], kinds: [1, 2, 3, 4, 5, 6, 7], kindShare: 0.4 },
+  { id: '10-4', chapter: 10, title: '最后的杠杆', intro: '手牌压到最低，形状是唯一的杠杆。', size: 9, bank: 5, par: 5, targetB: 20, weights: [1, 2, 1], kinds: [1, 2, 3, 4, 5, 6, 7], kindShare: 0.4 },
+  { id: '10-5', chapter: 10, title: '终局·万象归一', intro: '五十关的最后一爆：万形齐发，一炸到底。', size: 9, bank: 6, par: 6, targetB: 24, weights: [1, 2, 1], kinds: [1, 2, 3, 4, 5, 6, 7], kindShare: 0.5 }
 ];
 
-const CHAPTERS = { 1: CH1, 2: CH2, 3: CH3, 4: CH4, 5: CH5, 6: CH6 };
+const CHAPTERS = { 1: CH1, 2: CH2, 3: CH3, 4: CH4, 5: CH5, 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10 };
 
 /* ---------------- 随机棋盘 ---------------- */
 function pickCount(weights, rnd) {
@@ -87,9 +119,24 @@ function pickCount(weights, rnd) {
   return 3;
 }
 
+/* 生成一个格子字符：先掷点数，再决定形状——
+ * · 钉子格（家族保底）直接用指定家族；
+ * · 其余按 kindShare 概率抽池内家族，否则普通十字。
+ * 短路写法保证：无 kinds 的旧配方不消耗任何额外随机数
+ * （seed 相同时旧 30 关棋盘逐字节复现）。 */
+function cellChar(spec, kinds, kindShare, rnd, forcedFam) {
+  const p = pickCount(spec.weights, rnd);
+  const fam = forcedFam !== undefined
+    ? forcedFam
+    : (kinds.length && rnd() < kindShare ? kinds[Math.floor(rnd() * kinds.length)] : 0);
+  return fam ? engine.CELL_CHARS[fam][p - 1] : String(p);
+}
+
 function randomBoard(spec, rnd) {
   const { size, targetB } = spec;
   const cells = new Set();
+  const kinds = spec.kinds || [];
+  const kindShare = spec.kindShare || 0;
   const lineBias = spec.lineBias || 0;
   const lineCount = Math.round(targetB * lineBias);
   if (lineCount > 0) {
@@ -108,11 +155,23 @@ function randomBoard(spec, rnd) {
     cells.add(Math.floor(rnd() * size * size));
   }
   const rows = [];
+  // 家族保底（混形关）：池内每个家族先随机钉一颗（不放回），其余按 kindShare 随机
+  let forced = null;
+  if (kinds.length) {
+    const fams = [...new Set(kinds)];
+    const spots = [...cells];
+    forced = new Map();
+    for (const fam of fams) {
+      const t = Math.floor(rnd() * spots.length);
+      forced.set(spots[t], fam);
+      spots.splice(t, 1);
+    }
+  }
   for (let r = 0; r < size; r++) {
     let row = '';
     for (let c = 0; c < size; c++) {
       const idx = r * size + c;
-      row += cells.has(idx) ? String(pickCount(spec.weights, rnd)) : '.';
+      row += cells.has(idx) ? cellChar(spec, kinds, kindShare, rnd, forced ? forced.get(idx) : undefined) : '.';
     }
     rows.push(row);
   }

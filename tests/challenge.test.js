@@ -31,7 +31,7 @@ test('makeChallenge 生成的关卡与 solver 复算一致且可解', () => {
     assert.equal(lv.board.length, lv.size);
     for (const row of lv.board) {
       assert.equal(row.length, lv.size);
-      assert.ok(/^[.123]+$/.test(row));
+      assert.ok(/^[.123A-U]+$/.test(row), '字符集（数字 + 形状字母）');
     }
     const g = engine.newGame({ size: lv.size, board: lv.board, bank: lv.bank, allowPlant: false });
     const res = solver.solve(g, { timeBudget: 8000 });
@@ -40,6 +40,23 @@ test('makeChallenge 生成的关卡与 solver 复算一致且可解', () => {
     const fin = solver.replay(g, res.moves);
     assert.ok(fin.over && fin.win, 'stage ' + stage + ' 解回放必胜');
   }
+});
+
+test('形状随 stage 递进混入：早期纯普通，8 起直线，15 起全开', () => {
+  for (const stage of [0, 3]) {
+    const lv = CH.makeChallenge(stage, 77);
+    assert.ok(lv, 'stage ' + stage + ' 应能生成');
+    assert.ok(lv.board.every(r => /^[.123]+$/.test(r)), 'stage ' + stage + ' 纯普通棋');
+  }
+  const lv8 = CH.makeChallenge(8, 77);
+  assert.ok(lv8, 'stage 8 应能生成');
+  const flat8 = lv8.board.join('');
+  assert.ok(/[A-F]/.test(flat8), 'stage 8 含直线棋');
+  assert.ok(!/[G-U]/.test(flat8), 'stage 8 无三角/方框');
+  const lv15 = CH.makeChallenge(15, 77);
+  assert.ok(lv15, 'stage 15 应能生成');
+  const flat15 = lv15.board.join('');
+  assert.ok(/[A-F]/.test(flat15) && /[G-R]/.test(flat15) && /[S-U]/.test(flat15), 'stage 15 四类形状齐全（家族钉子）');
 });
 
 test('makeChallenge 确定性：同种子同关卡', () => {

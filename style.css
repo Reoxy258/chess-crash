@@ -315,6 +315,28 @@ button {
 .piece.p1 { background: var(--p1); }
 .piece.p2 { background: var(--p2); }
 .piece.p3 { background: var(--p3); animation: p3pulse 1.8s ease infinite; }
+
+/* ---- 特殊形状棋（v1.2.0）：横线/竖线/三角 T/方框 ---- */
+.piece.k-row { inset: 17% 3%; border-radius: 999px; }
+.piece.k-col { inset: 3% 17%; border-radius: 999px; }
+.piece.k-sq { inset: 5%; border-radius: 18%; }
+.piece.k-tri-u { clip-path: polygon(50% 0, 100% 100%, 0 100%); border-radius: 0; align-items: flex-end; padding-bottom: 9%; font-size: .72em; }
+.piece.k-tri-d { clip-path: polygon(0 0, 100% 0, 50% 100%); border-radius: 0; align-items: flex-start; padding-top: 9%; font-size: .72em; }
+.piece.k-tri-l { clip-path: polygon(0 50%, 100% 0, 100% 100%); border-radius: 0; justify-content: flex-end; padding-right: 12%; font-size: .72em; }
+.piece.k-tri-r { clip-path: polygon(0 0, 0 100%, 100% 50%); border-radius: 0; justify-content: flex-start; padding-left: 12%; font-size: .72em; }
+/* clip-path 会剪掉 box-shadow：三角改用 drop-shadow 投影 + 亮度脉冲 */
+.piece.k-tri-u, .piece.k-tri-d, .piece.k-tri-l, .piece.k-tri-r {
+  box-shadow: none;
+  filter: drop-shadow(0 2px 2px rgba(43, 52, 64, .3));
+}
+.piece.k-tri-u.p3, .piece.k-tri-d.p3, .piece.k-tri-l.p3, .piece.k-tri-r.p3 {
+  animation: tripulse 1.8s ease infinite;
+}
+@keyframes tripulse {
+  0%, 100% { filter: drop-shadow(0 2px 2px rgba(43,52,64,.3)) brightness(1); }
+  55% { filter: drop-shadow(0 2px 2px rgba(43,52,64,.3)) brightness(1.3); }
+}
+
 @keyframes p3pulse {
   0%, 100% { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 2px 4px rgba(43,52,64,.18), 0 0 0 0 rgba(232,84,45,.45); }
   55% { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 2px 4px rgba(43,52,64,.18), 0 0 0 7px rgba(232,84,45,0); }
@@ -360,6 +382,23 @@ button {
   pointer-events: none;
   z-index: 5;
   transition: transform linear;
+}
+/* 形状波配色：横线琥珀 / 竖线蓝 / 三角紫 / 方框绿（普通十字默认橙） */
+.spark.sk-row {
+  background: radial-gradient(circle, #fff 0%, #f5b31a 55%, rgba(245,179,26,0) 100%);
+  box-shadow: 0 0 12px 3px rgba(245, 179, 26, .55);
+}
+.spark.sk-col {
+  background: radial-gradient(circle, #fff 0%, #4fa3d1 55%, rgba(79,163,209,0) 100%);
+  box-shadow: 0 0 12px 3px rgba(79, 163, 209, .55);
+}
+.spark.sk-tri {
+  background: radial-gradient(circle, #fff 0%, #9b59d0 55%, rgba(155,89,208,0) 100%);
+  box-shadow: 0 0 12px 3px rgba(155, 89, 208, .55);
+}
+.spark.sk-sq {
+  background: radial-gradient(circle, #fff 0%, #3aa76d 55%, rgba(58,167,109,0) 100%);
+  box-shadow: 0 0 12px 3px rgba(58, 167, 109, .55);
 }
 
 /* 爆裂碎片 */
@@ -524,6 +563,7 @@ button {
 /* ---------------- 动效减弱偏好 ---------------- */
 @media (prefers-reduced-motion: reduce) {
   .piece.p3 { animation: none; }
+  .piece.k-tri-u.p3, .piece.k-tri-d.p3, .piece.k-tri-l.p3, .piece.k-tri-r.p3 { animation: none; }
   .piece.bump, .piece.blast { animation-duration: .06s; }
   .board-wrap.shake { animation: none; }
   .chain-badge { animation: none; }

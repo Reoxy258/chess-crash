@@ -1,13 +1,15 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.1.0）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.2.0）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
  * 三种玩法共用一套棋盘与演出：
- * - 战役（30 关，背板重试）；无限挑战（难度递增、失败即结算、跑分纪录）；
+ * - 战役（50 关，含四类特殊形状棋）；无限挑战（难度递增、失败即结算、跑分纪录）；
  *   每日挑战（日期种子，全站同款，星数取当天最佳）。
  * 演出核心：消费 applyMove 的 trace，
- * 按波次播放「分裂爆炸 → 冲击光点沿行/列按距离飞行 → 到达 +1」。
+ * 按波次播放「分裂爆炸 → 冲击光点按形状波及路径按距离飞行 → 到达 +1」。
  * 连锁波数驱动徽章、震屏与音高阶梯；动画中点击可加速。
+ * 特殊形状（横线/竖线/三角 T/方框）各有棋形外观与冲击光点配色；
+ * 一次点击消除多颗时播放激励音（波内多消喝彩 + 结算连消琶音）。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -20,6 +22,12 @@
   const starFor = window.CC_STAR_FOR;
   const unlocked = window.CC_UNLOCKED;
   const CH = window.CC_CHALLENGE;
+
+  /* kind → 棋子形状 class（0 = 普通圆点，无 class） */
+  const KIND_CLASS = ['', 'k-row', 'k-col', 'k-tri-u', 'k-tri-d', 'k-tri-l', 'k-tri-r', 'k-sq'];
+  /* kind → 冲击光点配色 class（0 = 默认橙） */
+  const SPARK_CLASS = ['', 'sk-row', 'sk-col', 'sk-tri', 'sk-tri', 'sk-tri', 'sk-tri', 'sk-sq'];
+  const kindClassOf = v => KIND_CLASS[E.kindOf(v)] || '';
 
   const $ = id => document.getElementById(id);
   const menuScreen = $('screen-menu');
@@ -111,6 +119,20 @@
       wave(n) { tone(277 * Math.pow(2, Math.min(n, 24) / 12), 0.2, { type: 'square', gain: 0.06 }); },
       hit() { tone(932, 0.05, { type: 'triangle', gain: 0.05 }); },
       boom() { tone(110, 0.32, { type: 'sawtooth', gain: 0.15, slide: 45 }); },
+      /* 激励音：波内一次多消 → 清亮双音喝彩（音高随消除数上抬） */
+      cheer(n) {
+        const f = 1174 * Math.pow(2, Math.min(n, 8) / 24);
+        tone(f, 0.09, { type: 'sine', gain: 0.07 });
+        setTimeout(() => tone(f * 1.25, 0.09, { type: 'sine', gain: 0.06 }), 60);
+      },
+      /* 激励音：单次点击累计消除 ≥3 → 上行琶音，消得越多音越长 */
+      streak(n) {
+        const notes = [659, 784, 988, 1319, 1568];
+        const cnt = Math.min(3 + Math.floor((n - 3) / 2), 5);
+        for (let i = 0; i < cnt; i++) {
+          setTimeout(() => tone(notes[i], 0.13, { type: 'triangle', gain: 0.09 }), i * 75);
+        }
+      },
       win() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.2, { type: 'triangle', gain: 0.1 }), i * 110)); },
       lose() { [330, 262, 208].forEach((f, i) => setTimeout(() => tone(f, 0.24, { type: 'sine', gain: 0.1 }), i * 140)); }
     };
@@ -162,7 +184,8 @@
     $('total-stars').textContent = '★ ' + totalStars() + ' / ' + LEVELS.length * 3;
     const host = $('chapters');
     host.innerHTML = '';
-    for (let ch = 1; ch <= 6; ch++) {
+    const chapterCount = Math.max.apply(null, LEVELS.map(l => l.chapter));
+    for (let ch = 1; ch <= chapterCount; ch++) {
       const list = LEVELS.map((l, i) => ({ l, i })).filter(x => x.l.chapter === ch);
       const chStars = list.reduce((n, x) => n + (progress.stars[x.l.id] || 0), 0);
       const wrap = document.createElement('div');
@@ -296,8 +319,9 @@
       const v = game.cells[i];
       if (v > 0) {
         const p = document.createElement('div');
-        p.className = 'piece p' + v;
-        p.textContent = String(v);
+        const kc = kindClassOf(v);
+        p.className = 'piece p' + E.pointsOf(v) + (kc ? ' ' + kc : '');
+        p.textContent = String(E.pointsOf(v));
         cell.appendChild(p);
       } else if (game.allowPlant) {
         cell.classList.add('plantable');
@@ -325,8 +349,9 @@
           p = document.createElement('div');
           cell.appendChild(p);
         }
-        p.className = 'piece p' + v;
-        p.textContent = String(v);
+        const kc = kindClassOf(v);
+        p.className = 'piece p' + E.pointsOf(v) + (kc ? ' ' + kc : '');
+        p.textContent = String(E.pointsOf(v));
       } else if (p) {
         p.remove();
       }
@@ -364,7 +389,8 @@
   function bumpPiece(i, count) {
     const p = pieceEl(i);
     if (!p) return;
-    p.className = 'piece p' + count;
+    const kc = (p.className.match(/k-[a-z-]+/) || [''])[0];
+    p.className = 'piece p' + count + (kc ? ' ' + kc : '');
     p.textContent = String(count);
     void p.offsetWidth;
     p.classList.add('bump');
@@ -395,12 +421,12 @@
     }
   }
 
-  function flySpark(from, to, dist, rects, wrapRect) {
+  function flySpark(from, to, dist, k, rects, wrapRect) {
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
       const b = cellCenter(to, rects, wrapRect);
       const spark = document.createElement('div');
-      spark.className = 'spark';
+      spark.className = 'spark' + (SPARK_CLASS[k] ? ' ' + SPARK_CLASS[k] : '');
       spark.style.left = '0';
       spark.style.top = '0';
       spark.style.transform = 'translate(' + (a.x - 5) + 'px,' + (a.y - 5) + 'px)';
@@ -441,8 +467,9 @@
     } else {
       const p = pieceEl(idx);
       if (p) {
-        const next = trace.place.to;
-        p.className = 'piece p' + Math.min(next, 3);
+        const next = E.pointsOf(trace.place.to);
+        const kc = KIND_CLASS[trace.place.kind] || '';
+        p.className = 'piece p' + Math.min(next, 3) + (kc ? ' ' + kc : '');
         p.textContent = String(next);
         void p.offsetWidth;
         p.classList.add('bump');
@@ -471,12 +498,13 @@
       }
       sfx.wave(w + 1);
       sfx.boom();
+      if (wave.splits.length >= 2) sfx.cheer(wave.splits.length);
 
       for (const sp of wave.splits) {
         blastPiece(sp.index, rects, wrapRect);
       }
 
-      const flights = wave.boosts.map(b => flySpark(b.from, b.to, b.dist, rects, wrapRect));
+      const flights = wave.boosts.map(b => flySpark(b.from, b.to, b.dist, b.k, rects, wrapRect));
       await Promise.all(flights);
       await wait(130 * animSpeed);
     }
@@ -485,6 +513,7 @@
       await wait(120 * animSpeed);
       chainBadge.classList.add('hidden');
     }
+    if (trace.splits >= 3) sfx.streak(trace.splits);
     busy = false;
   }
 
@@ -570,8 +599,10 @@
   function hintAdvice() {
     let has3 = false, has2 = false;
     for (const v of game.cells) {
-      if (v === 3) has3 = true;
-      if (v === 2) has2 = true;
+      if (v === 0) continue;
+      const p = E.pointsOf(v);
+      if (p === 3) has3 = true;
+      if (p === 2) has2 = true;
     }
     if (has3) return '提示：找一颗 3 点棋子——它只差一点就要爆了。再点一次「提示」看具体位置。';
     if (has2) return '提示：想想哪颗棋子爆炸时能扫到最多伙伴，把点投给它。再点一次「提示」看具体位置。';
