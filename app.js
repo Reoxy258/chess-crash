@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.1 激光束演出）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.2 震荡波与激光加粗）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -20,6 +20,9 @@
  * v1.6.1 激光束：冲击波传播从「光点飞行」改为「激光束射击」——白亮芯 + 族色辉光，
  * 从爆源极速伸出命中（命中端亮头 + 十字星爆闪），随后驻留发光、收细消散；
  * 多目标齐射读得出形状（整行扫射/纵列光雨/T 形光阵/八向环射）。
+ * v1.6.2 震荡波与激光加粗：方框不再走激光——从源扩散两圈方形震荡环（绿族），
+ * 方环外沿同时扫到 8 邻域（与切比雪夫格距天然同步命中），第二圈延迟跟随成「震荡」余波；
+ * 激光束整体加粗（8px 双层辉光 + 更亮白芯 + 更大命中头），方框源冲击波环也改方形轮廓。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -187,6 +190,11 @@
       zap() {
         tone(920, 0.09, { type: 'sawtooth', gain: 0.05, slide: 320 });
         tone(1840, 0.05, { type: 'square', gain: 0.022, slide: 920, delay: 0.012 });
+      },
+      /* v1.6.2 震荡波低鸣：方框方环扩散的“嗡”（低频双音下滑） */
+      pulse() {
+        tone(105, 0.16, { type: 'sine', gain: 0.2, slide: 58 });
+        tone(210, 0.1, { type: 'sine', gain: 0.06, slide: 150 });
       },
       /* 激励音：波内一次多消 → 大三度和弦喝彩（音高随消除数上抬） */
       cheer(n) {
@@ -493,11 +501,12 @@
     return [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4];
   }
 
-  /* v1.6.0 冲击波环：分裂瞬间从棋子中心扩散一圈描边环（形状族配色） */
+  /* v1.6.0 冲击波环：分裂瞬间从棋子中心扩散一圈描边环（形状族配色）。
+   * v1.6.2 方框源的环改方形轮廓（与震荡波呼应）。 */
   function shockwave(i, kind, rects, wrapRect) {
     const c = cellCenter(i, rects, wrapRect);
     const ring = document.createElement('div');
-    ring.className = 'shockwave';
+    ring.className = 'shockwave' + (kind === 7 ? ' sq' : '');
     ring.style.left = c.x + 'px';
     ring.style.top = c.y + 'px';
     ring.style.width = ring.style.height = (rects[i].width * 0.9) + 'px';
@@ -620,6 +629,52 @@
     });
   }
 
+  /* v1.6.2 方框震荡波：方框爆开不走激光，而是从源扩散两圈方形震荡环（绿族）——
+   * 方环外沿同时扫到边与角（与切比雪夫格距天然同步），环沿到达即全部命中
+   * （十字星爆闪 + 弹起），第二圈延迟跟随制造「震荡」余波。 */
+  function flyRipple(from, boosts, rects, wrapRect) {
+    return new Promise(resolve => {
+      const a = cellCenter(from, rects, wrapRect);
+      const cell = rects[from].width;
+      const maxDist = Math.max.apply(null, boosts.map(b => b.dist));
+      const fire = REDUCED_MOTION ? 30 : Math.max(50, (BEAM_BASE + maxDist * BEAM_UNIT) * animSpeed);
+      const hold = REDUCED_MOTION ? 40 : 70 * animSpeed;
+      sfx.pulse();
+      for (let r = 0; r < 2; r++) {
+        const ring = document.createElement('div');
+        ring.className = 'ripple';
+        ring.style.left = a.x + 'px';
+        ring.style.top = a.y + 'px';
+        ring.style.width = ring.style.height = (cell * (2 * maxDist + 1.1)) + 'px';
+        boardWrap.appendChild(ring);
+        const delay = REDUCED_MOTION || r === 0 ? 0 : 80;
+        const dur = REDUCED_MOTION ? fire + 60 : fire + 280;
+        try {
+          ring.animate([
+            { transform: 'translate(-50%,-50%) scale(.12)', opacity: 0, easing: 'cubic-bezier(.15,.75,.3,1)' },
+            { transform: 'translate(-50%,-50%) scale(1)', opacity: .95, offset: Math.min(fire / dur, .8) },
+            { transform: 'translate(-50%,-50%) scale(1)', opacity: .85, offset: Math.min((fire + hold) / dur, .9) },
+            { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }
+          ], { duration: dur, delay, fill: 'backwards' });
+        } catch (e) { /* WAAPI 不可用则静态 */ }
+        setTimeout(() => ring.remove(), dur + delay + 60);
+      }
+      /* 环沿扫过邻域：全部同时命中（方环外沿同时到达边与角） */
+      setTimeout(() => {
+        for (const b of boosts) {
+          const c = cellCenter(b.to, rects, wrapRect);
+          impactFlash(c.x, c.y, b.k);
+          const p = pieceEl(b.to);
+          if (p) {
+            const next = Number(p.textContent) + 1;
+            bumpPiece(b.to, Math.min(next, 3));
+          }
+        }
+      }, fire);
+      setTimeout(() => resolve(), fire + hold);
+    });
+  }
+
   async function playTrace(trace) {
     busy = true;
     animSpeed = 1;
@@ -663,6 +718,15 @@
       const wave = trace.waves[w];
       const waveN = w + 1;
       const n = wave.splits.length;
+      /* v1.6.2 波形分流：方框源的波走震荡波（每源一圈方环），其余走激光束 */
+      const laserBoosts = [];
+      const rippleBySrc = new Map();
+      for (const b of wave.boosts) {
+        if (b.k === 7) {
+          if (!rippleBySrc.has(b.from)) rippleBySrc.set(b.from, []);
+          rippleBySrc.get(b.from).push(b);
+        } else laserBoosts.push(b);
+      }
       if (w >= 1) {
         chainBadge.textContent = '连锁 ×' + waveN;
         chainBadge.classList.remove('hidden', 't2', 't3');
@@ -682,7 +746,7 @@
       }
       sfx.wave(waveN);
       sfx.boom();
-      if (wave.boosts.length) sfx.zap();
+      if (laserBoosts.length) sfx.zap();  /* 电光音只配激光；方框的震荡低鸣在 flyRipple 内 */
       if (n >= 2) sfx.cheer(n);
 
       /* v1.6.0 碎片预算：波内分裂过多时每颗减料，保住移动端帧率 */
@@ -693,7 +757,9 @@
       tickPieces(Math.max(0, piecesLeft - n));
       piecesLeft -= n;
 
-      const flights = wave.boosts.map(b => flyBeam(b.from, b.to, b.dist, b.k, rects, wrapRect));
+      const flights = [];
+      for (const b of laserBoosts) flights.push(flyBeam(b.from, b.to, b.dist, b.k, rects, wrapRect));
+      for (const list of rippleBySrc.values()) flights.push(flyRipple(list[0].from, list, rects, wrapRect));
       await Promise.all(flights);
       await wait(130 * animSpeed);
 
