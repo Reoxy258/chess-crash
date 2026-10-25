@@ -271,12 +271,28 @@ button {
   border: 1px solid var(--line);
   border-radius: 18px;
 }
-.board-wrap.shake { animation: shake .26s ease; }
+/* v1.6.0 震屏三档：连锁 ×2 → s1，×3-4 → s2（加旋转），×5+ → s3（更狠） */
+.board-wrap.s1 { animation: shake .26s ease; }
+.board-wrap.s2 { animation: shake2 .3s ease; }
+.board-wrap.s3 { animation: shake3 .34s ease; }
 @keyframes shake {
   0%, 100% { transform: translate(0, 0); }
   25% { transform: translate(-4px, 2px); }
   50% { transform: translate(4px, -2px); }
   75% { transform: translate(-3px, -1px); }
+}
+@keyframes shake2 {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-6px, 3px) rotate(-.3deg); }
+  45% { transform: translate(6px, -3px) rotate(.3deg); }
+  70% { transform: translate(-4px, -2px) rotate(-.15deg); }
+}
+@keyframes shake3 {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  15% { transform: translate(-8px, 4px) rotate(-.5deg); }
+  40% { transform: translate(8px, -4px) rotate(.5deg); }
+  60% { transform: translate(-5px, 3px) rotate(-.3deg); }
+  80% { transform: translate(5px, -2px) rotate(.15deg); }
 }
 
 .board {
@@ -380,7 +396,7 @@ button {
 .piece.blast { animation: blast .22s ease forwards; }
 @keyframes blast {
   0% { transform: scale(1); filter: brightness(1); }
-  35% { transform: scale(1.42); filter: brightness(2.4); }
+  35% { transform: scale(1.52); filter: brightness(2.6); }
   100% { transform: scale(.1); filter: brightness(3); opacity: 0; }
 }
 .cell.focus .piece { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -444,6 +460,74 @@ button {
   transition: transform .38s ease-out, opacity .38s ease-out;
 }
 
+/* ---------------- v1.6.0 打击感演出 ---------------- */
+/* 冲击波环：分裂瞬间从棋子中心扩散的描边圆环（形状族配色，尺寸随格自适应） */
+.shockwave {
+  position: absolute;
+  border: 3px solid rgba(255, 138, 61, .9);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 4;
+  animation: shock .45s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+@keyframes shock {
+  0% { transform: translate(-50%, -50%) scale(.3); opacity: .95; }
+  100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; }
+}
+
+/* 顿帧闪光：重波落地时棋盘中央白光一闪 */
+.board-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, .42), rgba(255, 255, 255, 0) 72%);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 0;
+  animation: boardflash .2s ease-out;
+}
+@keyframes boardflash {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 弹字评价：按表现弹出大字喝彩，上浮渐隐；新评价顶替旧评价 */
+.praise {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  font-weight: 900;
+  font-size: clamp(24px, 6.4vw, 40px);
+  color: #fff;
+  letter-spacing: .04em;
+  text-shadow: 0 2px 0 rgba(43, 52, 64, .3), 0 0 22px rgba(255, 255, 255, .45);
+  pointer-events: none;
+  z-index: 8;
+  white-space: nowrap;
+  animation: praiseup .9s cubic-bezier(.2, .6, .3, 1) forwards;
+}
+.praise.t1 { color: #ffb258; text-shadow: 0 2px 0 rgba(43, 52, 64, .3), 0 0 22px rgba(245, 179, 26, .6); }
+.praise.t2 { color: #d59df5; text-shadow: 0 2px 0 rgba(43, 52, 64, .3), 0 0 24px rgba(155, 89, 208, .65); }
+.praise.t3 { color: #ff8a70; font-size: clamp(28px, 7.4vw, 46px); text-shadow: 0 2px 0 rgba(43, 52, 64, .3), 0 0 26px rgba(232, 84, 45, .7); }
+.praise.t4 { color: #ffd76a; font-size: clamp(30px, 8vw, 50px); text-shadow: 0 2px 0 rgba(43, 52, 64, .35), 0 0 30px rgba(245, 179, 26, .8); }
+@keyframes praiseup {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(.55); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scale(1.14); }
+  28% { transform: translate(-50%, -52%) scale(1); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -135%) scale(1.02); }
+}
+
+/* 剩余棋子倒计时脉冲：每波消除后数字弹一下、闪主题色 */
+.hud-pieces.tick { animation: hudtick .3s ease; }
+.hud-pieces.tick b { color: var(--accent); }
+@keyframes hudtick {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
 .chain-badge {
   position: absolute;
   top: -12px;
@@ -457,6 +541,17 @@ button {
   box-shadow: 0 4px 10px rgba(255, 138, 61, .45);
   z-index: 6;
   animation: chainpop .28s ease;
+}
+/* v1.6.0 徽章档位：×3-4 紫 / ×5+ 赤红发光，字号随档位增大 */
+.chain-badge.t2 {
+  background: #9b59d0;
+  box-shadow: 0 4px 12px rgba(155, 89, 208, .5);
+}
+.chain-badge.t3 {
+  background: #e8452d;
+  font-size: 17px;
+  padding: 5px 14px;
+  box-shadow: 0 4px 14px rgba(232, 84, 45, .55), 0 0 18px rgba(232, 84, 45, .4);
 }
 @keyframes chainpop {
   0% { transform: scale(.6); }
@@ -595,8 +690,12 @@ button {
   .piece.p3 { animation: none; }
   .piece.k-tri-u.p3::before, .piece.k-tri-d.p3::before, .piece.k-tri-l.p3::before, .piece.k-tri-r.p3::before { animation: none; }
   .piece.bump, .piece.blast { animation-duration: .06s; }
-  .board-wrap.shake { animation: none; }
+  .board-wrap.s1, .board-wrap.s2, .board-wrap.s3 { animation: none; }
+  .shockwave { animation: none; opacity: 0; }
+  .board-flash { animation: none; opacity: 0; }
+  .praise { animation: none; opacity: 1; }
   .chain-badge { animation: none; }
+  .hud-pieces.tick { animation: none; }
   .confetti { animation-duration: .5s; }
   .overlay-box { animation: none; }
   .overlay .stars .on { animation: none; }

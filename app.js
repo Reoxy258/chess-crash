@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.5.0）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.0 打击感增强包）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -10,6 +10,13 @@
  * 连锁波数驱动徽章、震屏与音高阶梯；动画中点击可加速。
  * 特殊形状（横线/竖线/三角 T/方框）各有棋形外观与冲击光点配色；
  * 一次点击消除多颗时播放激励音（波内多消喝彩 + 结算连消琶音）。
+ * v1.6.0 打击感增强：
+ * - 分裂演出：冲击波环（形状族配色）+ 形状定向碎片（横线沿行/竖线沿列/三角朝角/方框八向）；
+ *   顿帧（重波落地微停 + 棋盘闪光）；震屏三档；连锁徽章分档变色。
+ * - 正反馈：弹字评价（双消/妙/漂亮/史诗连锁/神之一手，上浮渐隐）；
+ *   剩余棋子逐波倒计时脉冲。
+ * - 音效重制：压缩器母线 + 三层爆音（谐波滑落 + 低频 kick + 噪声爆裂）；
+ *   音高阶梯叠高八度 sparkle、命中双音、喝彩三和弦、评价配套音、琶音八度冠音。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -84,12 +91,28 @@
   }
   const saveProgress = () => saveJSON(KEY, progress);
 
-  /* ================= 音效（WebAudio 合成，可静音） ================= */
+  /* ================= 音效（WebAudio 合成，可静音；v1.6.0 重制打击感） ================= */
+  /* 打击感三层结构：低频 kick（分量）+ 噪声爆裂（脆度）+ 谐波滑落（音头）；
+   * 全部音源过 DynamicsCompressor 母线——多音叠加不爆音、响度统一。
+   * tone/noise 都支持 delay（按音频时钟精确排程，替代 setTimeout）。 */
   let soundOn = loadJSON(KEY_SOUND, 'on') !== 'off';
   const sfx = (function () {
     let ctx = null;
+    let master = null;      // 压缩器母线
+    let noiseBuf = null;    // 预生成白噪声（爆裂层复用）
     function ensure() {
-      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createDynamicsCompressor();
+        master.threshold.value = -18;
+        master.knee.value = 24;
+        master.ratio.value = 6;
+        master.connect(ctx.destination);
+        const len = Math.floor(ctx.sampleRate * 0.25);
+        noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      }
       if (ctx.state === 'suspended') ctx.resume();
       return ctx;
     }
@@ -98,43 +121,90 @@
       opts = opts || {};
       try {
         const c = ensure();
-        const t0 = c.currentTime;
+        const t0 = c.currentTime + (opts.delay || 0);
         const o = c.createOscillator();
         const g = c.createGain();
         o.type = opts.type || 'sine';
         o.frequency.setValueAtTime(freq, t0);
         if (opts.slide) o.frequency.exponentialRampToValueAtTime(opts.slide, t0 + dur);
-        g.gain.setValueAtTime(opts.gain || 0.12, t0);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(opts.gain || 0.12, t0 + 0.012); /* 快起音，避免咔哒 */
         g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
         o.connect(g);
-        g.connect(c.destination);
+        g.connect(master);
         o.start(t0);
-        o.stop(t0 + dur);
+        o.stop(t0 + dur + 0.02);
       } catch (e) { /* 音频不可用则静默 */ }
+    }
+    /* 白噪声 + 低通扫频：爆裂的“脆” */
+    function noise(dur, opts) {
+      if (!soundOn) return;
+      opts = opts || {};
+      try {
+        const c = ensure();
+        const t0 = c.currentTime + (opts.delay || 0);
+        const s = c.createBufferSource();
+        s.buffer = noiseBuf;
+        s.loop = true;
+        const f = c.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(opts.from || 2600, t0);
+        f.frequency.exponentialRampToValueAtTime(opts.to || 300, t0 + dur);
+        f.Q.value = 0.8;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(opts.gain || 0.16, t0 + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+        s.connect(f);
+        f.connect(g);
+        g.connect(master);
+        s.start(t0);
+        s.stop(t0 + dur + 0.02);
+      } catch (e) { /* 静默 */ }
     }
     return {
       unlock() { try { ensure(); } catch (e) { /* noop */ } },
-      place() { tone(520, 0.09, { type: 'triangle' }); },
-      plant() { tone(392, 0.14, { type: 'sine', slide: 560 }); },
-      wave(n) { tone(277 * Math.pow(2, Math.min(n, 24) / 12), 0.2, { type: 'square', gain: 0.06 }); },
-      hit() { tone(932, 0.05, { type: 'triangle', gain: 0.05 }); },
-      boom() { tone(110, 0.32, { type: 'sawtooth', gain: 0.15, slide: 45 }); },
-      /* 激励音：波内一次多消 → 清亮双音喝彩（音高随消除数上抬） */
+      place() { tone(520, 0.09, { type: 'triangle' }); tone(780, 0.06, { type: 'sine', gain: 0.05, delay: 0.015 }); },
+      plant() { tone(392, 0.14, { type: 'sine', slide: 560 }); tone(784, 0.1, { type: 'sine', gain: 0.05, delay: 0.05 }); },
+      /* 连锁音高阶梯：主方波 + 高两个八度的 sparkle 短 ping（v1.6.0，听感更“亮”） */
+      wave(n) {
+        const k = Math.min(n, 24);
+        tone(277 * Math.pow(2, k / 12), 0.2, { type: 'square', gain: 0.06 });
+        tone(2216 * Math.pow(2, k / 24), 0.07, { type: 'sine', gain: 0.045, delay: 0.02 });
+      },
+      hit() { tone(932, 0.05, { type: 'triangle', gain: 0.05 }); tone(1398, 0.04, { type: 'sine', gain: 0.028, delay: 0.012 }); },
+      /* 分裂爆音三层（v1.6.0）：saw 谐波滑落 + sine 低频 kick + 噪声爆裂 */
+      boom() {
+        tone(110, 0.32, { type: 'sawtooth', gain: 0.12, slide: 45 });
+        tone(150, 0.18, { type: 'sine', gain: 0.26, slide: 42 });
+        noise(0.16, { from: 2600, to: 280, gain: 0.15 });
+      },
+      /* 激励音：波内一次多消 → 大三度和弦喝彩（音高随消除数上抬） */
       cheer(n) {
         const f = 1174 * Math.pow(2, Math.min(n, 8) / 24);
         tone(f, 0.09, { type: 'sine', gain: 0.07 });
-        setTimeout(() => tone(f * 1.25, 0.09, { type: 'sine', gain: 0.06 }), 60);
+        tone(f * 1.25, 0.09, { type: 'sine', gain: 0.06, delay: 0.06 });
+        tone(f * 1.5, 0.09, { type: 'sine', gain: 0.05, delay: 0.12 });
       },
-      /* 激励音：单次点击累计消除 ≥3 → 上行琶音，消得越多音越长 */
+      /* 弹字评价配套音（v1.6.0）：档位越高叠音越多 */
+      praise(t) {
+        const base = 880 + t * 180;
+        tone(base, 0.08, { type: 'sine', gain: 0.07 });
+        tone(base * 1.5, 0.1, { type: 'sine', gain: 0.06, delay: 0.07 });
+        if (t >= 2) tone(base * 2, 0.12, { type: 'triangle', gain: 0.06, delay: 0.14 });
+        if (t >= 3) noise(0.2, { from: 5000, to: 1500, gain: 0.05, delay: 0.1 });
+      },
+      /* 激励音：单次点击累计消除 ≥3 → 上行琶音 + 八度冠音（v1.6.0），消得越多音越长 */
       streak(n) {
         const notes = [659, 784, 988, 1319, 1568];
         const cnt = Math.min(3 + Math.floor((n - 3) / 2), 5);
         for (let i = 0; i < cnt; i++) {
-          setTimeout(() => tone(notes[i], 0.13, { type: 'triangle', gain: 0.09 }), i * 75);
+          tone(notes[i], 0.13, { type: 'triangle', gain: 0.09, delay: i * 0.075 });
         }
+        tone(notes[cnt - 1] * 2, 0.22, { type: 'sine', gain: 0.07, delay: cnt * 0.075 });
       },
-      win() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.2, { type: 'triangle', gain: 0.1 }), i * 110)); },
-      lose() { [330, 262, 208].forEach((f, i) => setTimeout(() => tone(f, 0.24, { type: 'sine', gain: 0.1 }), i * 140)); }
+      win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, { type: 'triangle', gain: 0.1, delay: i * 0.11 })); },
+      lose() { [330, 262, 208].forEach((f, i) => tone(f, 0.24, { type: 'sine', gain: 0.1, delay: i * 0.14 })); }
     };
   })();
   document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
@@ -397,25 +467,87 @@
     sfx.hit();
   }
 
-  function blastPiece(i, rects, wrapRect) {
+  /* v1.6.0 打击感：形状族配色（碎片/冲击波环与光点同族配色） */
+  const FAM_COLOR = { 0: '#ff8a3d', 1: '#f5b31a', 2: '#4fa3d1', 3: '#9b59d0', 4: '#9b59d0', 5: '#9b59d0', 6: '#9b59d0', 7: '#3aa76d' };
+
+  /* v1.6.0 形状定向碎片：碎片沿该形状的波及方向喷射——横线沿行、竖线沿列、
+   * 三角朝角指方向、方框八向径向、普通十字米字。玩家能从碎片轨迹读出形状。 */
+  function shardAngles(kind) {
+    if (kind === 7) { const a = []; for (let k = 0; k < 8; k++) a.push(k * Math.PI / 4); return a; }
+    if (kind === 1 || kind === 2) {
+      const b = kind === 1 ? 0 : Math.PI / 2, a = [];
+      for (const side of [0, Math.PI]) for (const off of [-.34, -.12, .12, .34]) a.push(b + side + off);
+      return a;
+    }
+    const b = { 3: -Math.PI / 2, 4: Math.PI / 2, 5: Math.PI, 6: 0 }[kind];
+    if (b !== undefined) return [b - .5, b - .22, b - .08, b + .08, b + .22, b + .5, 0, Math.PI];
+    return [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4, -Math.PI / 4, 3 * Math.PI / 4, -3 * Math.PI / 4];
+  }
+
+  /* v1.6.0 冲击波环：分裂瞬间从棋子中心扩散一圈描边环（形状族配色） */
+  function shockwave(i, kind, rects, wrapRect) {
+    const c = cellCenter(i, rects, wrapRect);
+    const ring = document.createElement('div');
+    ring.className = 'shockwave';
+    ring.style.left = c.x + 'px';
+    ring.style.top = c.y + 'px';
+    ring.style.width = ring.style.height = (rects[i].width * 0.9) + 'px';
+    ring.style.borderColor = FAM_COLOR[kind] || FAM_COLOR[0];
+    boardWrap.appendChild(ring);
+    setTimeout(() => ring.remove(), 500);
+  }
+
+  /* v1.6.0 顿帧闪光：重波落地时棋盘中央白光一闪 */
+  function boardFlash() {
+    const f = document.createElement('div');
+    f.className = 'board-flash';
+    boardWrap.appendChild(f);
+    setTimeout(() => f.remove(), 260);
+  }
+
+  /* v1.6.0 弹字评价：按表现弹出大字喝彩（正反馈核心），
+   * 新评价顶替旧评价（连锁逐级升格）。 */
+  function praise(text, tier) {
+    const old = boardWrap.querySelector('.praise');
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.className = 'praise t' + tier;
+    el.textContent = text;
+    boardWrap.appendChild(el);
+    sfx.praise(tier);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 950);
+  }
+
+  /* v1.6.0 剩余棋子倒计时脉冲：每波消除后数字弹一下、闪主题色 */
+  function tickPieces(left) {
+    piecesNum.textContent = String(left);
+    piecesBadge.classList.remove('tick');
+    void piecesBadge.offsetWidth;
+    piecesBadge.classList.add('tick');
+  }
+
+  function blastPiece(i, kind, per, rects, wrapRect) {
     const cell = cellEl(i);
     const p = pieceEl(i);
     if (p) {
       p.classList.add('blast');
       setTimeout(() => p.remove(), 240);
     }
+    shockwave(i, kind, rects, wrapRect);
     const c = cellCenter(i, rects, wrapRect);
-    for (let k = 0; k < 9; k++) {
+    const angles = shardAngles(kind);
+    const col = FAM_COLOR[kind] || FAM_COLOR[0];
+    for (let k = 0; k < per; k++) {
       const shard = document.createElement('div');
       shard.className = 'shard';
-      const ang = Math.random() * Math.PI * 2;
-      const dist = 26 + Math.random() * 44;
+      const ang = angles[(k + Math.floor(Math.random() * angles.length)) % angles.length] + (Math.random() - .5) * .18;
+      const dist = 24 + Math.random() * 50;
       shard.style.left = (c.x - 3.5) + 'px';
       shard.style.top = (c.y - 3.5) + 'px';
-      shard.style.background = Math.random() < 0.5 ? '#f0a83c' : '#e8542d';
+      shard.style.background = Math.random() < .6 ? col : '#fff';
       boardWrap.appendChild(shard);
       void shard.offsetWidth;
-      shard.style.transform = 'translate(' + Math.cos(ang) * dist + 'px,' + Math.sin(ang) * dist + 'px) rotate(' + (Math.random() * 180) + 'deg)';
+      shard.style.transform = 'translate(' + Math.cos(ang) * dist + 'px,' + Math.sin(ang) * dist + 'px) rotate(' + (Math.random() * 220 - 110) + 'deg)';
       shard.style.opacity = '0';
       setTimeout(() => shard.remove(), 420);
     }
@@ -482,37 +614,66 @@
     const rects = Array.from(boardEl.children).map(c => c.getBoundingClientRect());
     const wrapRect = boardWrap.getBoundingClientRect();
     let chainShown = false;
+    /* 数 DOM（此刻盘面 = 投点后、逐波消除前的样子；game 已是终态不可用）。
+     * 终值由 onMoveDone 的 syncBoard 校准。 */
+    let piecesLeft = boardEl.querySelectorAll('.piece').length;
 
     for (let w = 0; w < trace.waves.length; w++) {
       const wave = trace.waves[w];
+      const waveN = w + 1;
+      const n = wave.splits.length;
       if (w >= 1) {
-        chainBadge.textContent = '连锁 ×' + (w + 1);
-        chainBadge.classList.remove('hidden');
+        chainBadge.textContent = '连锁 ×' + waveN;
+        chainBadge.classList.remove('hidden', 't2', 't3');
+        const tier = waveN >= 5 ? 't3' : waveN >= 3 ? 't2' : '';
+        if (tier) chainBadge.classList.add(tier);
         void chainBadge.offsetWidth;
         chainBadge.style.animation = 'none';
         void chainBadge.offsetWidth;
         chainBadge.style.animation = '';
-        boardWrap.classList.add('shake');
-        setTimeout(() => boardWrap.classList.remove('shake'), 300);
+        /* v1.6.0 震屏分级：连锁越高震得越狠 */
+        const shakeCls = waveN >= 5 ? 's3' : waveN >= 3 ? 's2' : 's1';
+        boardWrap.classList.remove('s1', 's2', 's3');
+        void boardWrap.offsetWidth;
+        boardWrap.classList.add(shakeCls);
+        setTimeout(() => boardWrap.classList.remove(shakeCls), 340);
         chainShown = true;
       }
-      sfx.wave(w + 1);
+      sfx.wave(waveN);
       sfx.boom();
-      if (wave.splits.length >= 2) sfx.cheer(wave.splits.length);
+      if (n >= 2) sfx.cheer(n);
 
+      /* v1.6.0 碎片预算：波内分裂过多时每颗减料，保住移动端帧率 */
+      const per = n > 12 ? 4 : 7;
       for (const sp of wave.splits) {
-        blastPiece(sp.index, rects, wrapRect);
+        blastPiece(sp.index, sp.kind, per, rects, wrapRect);
       }
+      tickPieces(Math.max(0, piecesLeft - n));
+      piecesLeft -= n;
 
       const flights = wave.boosts.map(b => flySpark(b.from, b.to, b.dist, b.k, rects, wrapRect));
       await Promise.all(flights);
       await wait(130 * animSpeed);
+
+      /* v1.6.0 弹字评价：波落地即喝彩（连锁逐级升格顶替） */
+      if (waveN >= 5) praise('史诗连锁！', 3);
+      else if (waveN >= 3) praise('漂亮！', 2);
+      else if (n >= 3) praise('妙！', 2);
+      else if (n === 2) praise('双消！', 1);
+
+      /* v1.6.0 顿帧：重波（多消或深连锁）落地后微停 + 棋盘闪光，下一波爆得更响 */
+      if ((n >= 3 || waveN >= 3) && w + 1 < trace.waves.length) {
+        boardFlash();
+        await wait(70 * animSpeed);
+      }
     }
 
     if (chainShown) {
       await wait(120 * animSpeed);
       chainBadge.classList.add('hidden');
     }
+    /* v1.6.0 收官喝彩：一次点击累计消除 ≥6 → 神之一手 */
+    if (trace.splits >= 6) praise('神之一手！', 4);
     if (trace.splits >= 3) sfx.streak(trace.splits);
     busy = false;
   }
