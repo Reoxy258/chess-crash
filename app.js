@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.3 贯穿激光刀 + 震荡波修复）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.4 单裂开光 + 刀锋收口）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -31,6 +31,10 @@
  * - 修复震荡波收尾跳变：环改 fill:forwards + 基础隐藏样式，动画结束后不再回退到
  *   未居中的全不透明状态（旧版会在移除前闪现 60ms 错位方环）。
  * - 激光再加粗：10px 束身 + 3.2px 白芯 + 15px 命中头，双层辉光增强。
+ * v1.6.4 单裂开光 + 刀锋收口：
+ * - 分裂即开光路（有无目标都开）：单个棋子裂开也射贯穿刀/震荡环——终波不再只有碎片飞散，
+ *   每一爆都看得到波及范围的光（十字四向刀/横竖一刀/T 形刀阵/方框震荡环）；
+ * - 刀锋收口：贯穿余量 0.45 格 → 0.1 格，光刀不再大段冲出棋盘，刀尖亮点在边缘收口。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -595,16 +599,18 @@
    * 十字=整行+整列四向全刀（贯穿全盘的十字光）、横线=整行一刀、竖线=整列一刀、
    * 三角=整行+半列的 T 形刀阵。刀锋冲出棋盘边缘（贯穿感），刀尖亮点沿线性扫射推进
    * ——扫过目标的瞬间即命中（爆闪 + 弹起），随后驻留发光、收细消散。
-   * 充能(亮刀尖) → 扫射(线性) → 驻留 → 消散四段。 */
-  function flyLaser(from, boosts, rects, wrapRect) {
+   * 充能(亮刀尖) → 扫射(线性) → 驻留 → 消散四段。
+   * v1.6.4 单裂也开刀：有无目标都开光路（kind 由分裂者传入，不再取 boosts[0]），
+   * 终波不再只有碎片飞散；刀锋收口——贯穿余量 0.45 格收窄到 0.1 格，不再大段冲出棋盘。 */
+  function flyLaser(from, kind, boosts, rects, wrapRect) {
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
-      const k = boosts[0].k;
+      const k = kind;
       const size = Math.round(Math.sqrt(rects.length));
       const r = (from / size) | 0, c = from % size;
       const cell = rects[from].width;
       const half = cell / 2;
-      const over = cell * 0.45;          // 贯穿余量：刀锋冲出棋盘边缘
+      const over = cell * 0.1;           // 贯穿收口：刀尖略微出格即止
       /* 行列两端中心 → 四向刀全长（到棋盘边缘外 over） */
       const rowL = cellCenter(r * size, rects, wrapRect).x;
       const rowR = cellCenter(r * size + size - 1, rects, wrapRect).x;
@@ -669,7 +675,8 @@
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
       const cell = rects[from].width;
-      const maxDist = Math.max.apply(null, boosts.map(b => b.dist));
+      /* v1.6.4 单裂也开波：无目标时按 1 格扩散（方框波及半径恒为 1） */
+      const maxDist = boosts.length ? Math.max.apply(null, boosts.map(b => b.dist)) : 1;
       const fire = REDUCED_MOTION ? 30 : Math.max(50, (RING_BASE + maxDist * RING_UNIT) * animSpeed);
       const hold = REDUCED_MOTION ? 40 : 70 * animSpeed;
       sfx.pulse();
@@ -753,14 +760,12 @@
       const wave = trace.waves[w];
       const waveN = w + 1;
       const n = wave.splits.length;
-      /* v1.6.3 波形分流：方框源走震荡波（每源一圈方环）；激光按爆源分组——
-       * 同一爆源的目标共享一组贯穿刀（整行/整列/T 形刀阵，不再逐目标单射） */
-      const laserBySrc = new Map();
-      const rippleBySrc = new Map();
+      /* v1.6.4 波形分流：按分裂者开光路——有无目标都开（单裂也有光）：
+       * 方框走震荡波，其余开贯穿刀；同一爆源的目标共享一组刀（整行/整列/T 形刀阵） */
+      const boostsBySrc = new Map();
       for (const b of wave.boosts) {
-        const m = b.k === 7 ? rippleBySrc : laserBySrc;
-        if (!m.has(b.from)) m.set(b.from, []);
-        m.get(b.from).push(b);
+        if (!boostsBySrc.has(b.from)) boostsBySrc.set(b.from, []);
+        boostsBySrc.get(b.from).push(b);
       }
       if (w >= 1) {
         chainBadge.textContent = '连锁 ×' + waveN;
@@ -781,7 +786,7 @@
       }
       sfx.wave(waveN);
       sfx.boom();
-      if (laserBySrc.size) sfx.zap();  /* 电光音只配激光；方框的震荡低鸣在 flyRipple 内 */
+      if (wave.splits.some(sp => sp.kind !== 7)) sfx.zap();  /* 电光音只配激光；方框的震荡低鸣在 flyRipple 内 */
       if (n >= 2) sfx.cheer(n);
 
       /* v1.6.0 碎片预算：波内分裂过多时每颗减料，保住移动端帧率 */
@@ -793,8 +798,12 @@
       piecesLeft -= n;
 
       const flights = [];
-      for (const [src, list] of laserBySrc) flights.push(flyLaser(src, list, rects, wrapRect));
-      for (const list of rippleBySrc.values()) flights.push(flyRipple(list[0].from, list, rects, wrapRect));
+      for (const sp of wave.splits) {
+        const list = boostsBySrc.get(sp.index) || [];
+        flights.push(sp.kind === 7
+          ? flyRipple(sp.index, list, rects, wrapRect)
+          : flyLaser(sp.index, sp.kind, list, rects, wrapRect));
+      }
       await Promise.all(flights);
       await wait(130 * animSpeed);
 
