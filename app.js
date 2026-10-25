@@ -1,9 +1,9 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.3.1）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.5.0）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
  * 三种玩法共用一套棋盘与演出：
- * - 战役（80 关，形状棋自第三章登场）；无限挑战（难度递增、失败即结算、跑分纪录）；
+ * - 战役（80 关，形状棋自第二章登场，每章第一关直接开放）；无限挑战（难度递增、失败即结算、跑分纪录）；
  *   每日挑战（日期种子，全站同款，星数取当天最佳）。
  * 演出核心：消费 applyMove 的 trace，
  * 按波次播放「分裂爆炸 → 冲击光点按形状波及路径按距离飞行 → 到达 +1」。
@@ -518,6 +518,15 @@
   }
 
   /* ================= 游戏流程 ================= */
+  /* 形状/能力首登场说明（v1.5.0）：每种新棋子出现前先讲清楚玩法 */
+  const DEBUT_COACH = {
+    '1-1': '棋盘上的圆点是棋子，数字是点数。点数到 4 就会爆炸！点击一颗 3 点棋子，给它 +1。',
+    '2-1': '新形状 ▬ 横线棋子：爆开时冲击波只扫同一横行，纵列不动。点满 4 点一样会炸。',
+    '2-2': '新形状 ▮ 竖线棋子：爆开时冲击波只灌同一纵列，横行不动。横竖差别要看清。',
+    '3-1': '新形状 ▲ 三角棋子：爆开扫整行，再向角指的方向伸出半列——T 字形波。角朝哪，波就伸向哪。',
+    '4-1': '新形状 ■ 方框棋子：爆开只轰自己周围一圈（8 个邻格）。范围小，位置却最讲究。',
+    '6-1': '新能力「播种」：点空格放下一颗 1 点棋子。种子接住两道冲击波就会爆——先布局，再引爆。'
+  };
   function loadLevel(lv) {
     level = lv;
     levelIdx = runCtx && runCtx.mode === 'campaign' ? LEVELS.indexOf(lv) : -1;
@@ -532,7 +541,8 @@
     syncBoard();
     showScreen('game');
     msg(lv.intro);
-    if (lv.id === '1-1') coachShow('棋盘上的圆点是棋子，数字是点数。点数到 4 就会爆炸！点击一颗 3 点棋子，给它 +1。');
+    const debut = DEBUT_COACH[lv.id];
+    if (debut) coachShow(debut);
   }
 
   function startLevel(i) {
@@ -545,7 +555,7 @@
     if (coachVisible()) return;
     const r = E.applyMove(game, idx);
     if (!r.ok) {
-      if (r.error === 'empty-no-plant') msg('空格放不了棋子——第五章解锁「播种」');
+      if (r.error === 'empty-no-plant') msg('空格放不了棋子——第六章起可「播种」');
       else if (r.error === 'no-bank') msg('点数用完了');
       return;
     }
