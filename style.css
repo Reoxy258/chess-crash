@@ -417,34 +417,82 @@ button {
   white-space: nowrap;
 }
 
-/* 冲击波光点 */
-.spark {
+/* v1.6.1 激光束：爆源向目标射出的光束——白亮芯 + 形状族色辉光，头部亮点即命中端 */
+.beam {
+  --bc: #ff8a3d;                  /* 族色 */
+  --bg: rgba(255, 138, 61, .6);   /* 辉光 */
+  position: absolute;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #fff 0%, var(--bc) 45%, var(--bc) 100%);
+  box-shadow: 0 0 9px 2px var(--bg);
+  transform-origin: 0 50%;
+  pointer-events: none;
+  z-index: 5;
+}
+.beam::after {                     /* 白色亮芯：贯穿全长的细亮线 */
+  content: '';
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  top: 50%;
+  height: 1.6px;
+  margin-top: -0.8px;
+  border-radius: 1px;
+  background: #fff;
+  box-shadow: 0 0 4px 1px #fff;
+}
+.beam::before {                    /* 光束头部亮点（命中端） */
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--bc) 60%, transparent 100%);
+  box-shadow: 0 0 8px 3px var(--bg);
+}
+/* 形状波配色：横线琥珀 / 竖线蓝 / 三角紫 / 方框绿（普通十字默认橙） */
+.beam.sk-row { --bc: #f5b31a; --bg: rgba(245, 179, 26, .6); }
+.beam.sk-col { --bc: #4fa3d1; --bg: rgba(79, 163, 209, .6); }
+.beam.sk-tri { --bc: #9b59d0; --bg: rgba(155, 89, 208, .6); }
+.beam.sk-sq  { --bc: #3aa76d; --bg: rgba(58, 167, 109, .6); }
+
+/* v1.6.1 命中爆闪：光束到达瞬间目标处炸开十字星（中心亮核 + X 光芒） */
+.impact {
+  --bc: #ff8a3d;
+  --bg: rgba(255, 138, 61, .55);
   position: absolute;
   width: 10px;
   height: 10px;
+  margin: -5px 0 0 -5px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, var(--accent) 55%, rgba(255,138,61,0) 100%);
-  box-shadow: 0 0 12px 3px rgba(255, 138, 61, .55);
+  background: radial-gradient(circle, #fff 0%, var(--bc) 45%, transparent 75%);
+  box-shadow: 0 0 12px 4px var(--bg);
   pointer-events: none;
   z-index: 5;
-  transition: transform linear;
+  animation: impactpop .26s ease-out forwards;
 }
-/* 形状波配色：横线琥珀 / 竖线蓝 / 三角紫 / 方框绿（普通十字默认橙） */
-.spark.sk-row {
-  background: radial-gradient(circle, #fff 0%, #f5b31a 55%, rgba(245,179,26,0) 100%);
-  box-shadow: 0 0 12px 3px rgba(245, 179, 26, .55);
+.impact::before, .impact::after {
+  content: '';
+  position: absolute;
+  background: #fff;
+  border-radius: 1px;
+  box-shadow: 0 0 5px 1px var(--bg);
 }
-.spark.sk-col {
-  background: radial-gradient(circle, #fff 0%, #4fa3d1 55%, rgba(79,163,209,0) 100%);
-  box-shadow: 0 0 12px 3px rgba(79, 163, 209, .55);
-}
-.spark.sk-tri {
-  background: radial-gradient(circle, #fff 0%, #9b59d0 55%, rgba(155,89,208,0) 100%);
-  box-shadow: 0 0 12px 3px rgba(155, 89, 208, .55);
-}
-.spark.sk-sq {
-  background: radial-gradient(circle, #fff 0%, #3aa76d 55%, rgba(58,167,109,0) 100%);
-  box-shadow: 0 0 12px 3px rgba(58, 167, 109, .55);
+.impact::before { left: 50%; top: -6px; bottom: -6px; width: 1.6px; margin-left: -0.8px; }
+.impact::after { top: 50%; left: -6px; right: -6px; height: 1.6px; margin-top: -0.8px; }
+.impact.sk-row { --bc: #f5b31a; --bg: rgba(245, 179, 26, .55); }
+.impact.sk-col { --bc: #4fa3d1; --bg: rgba(79, 163, 209, .55); }
+.impact.sk-tri { --bc: #9b59d0; --bg: rgba(155, 89, 208, .55); }
+.impact.sk-sq  { --bc: #3aa76d; --bg: rgba(58, 167, 109, .55); }
+@keyframes impactpop {
+  0% { opacity: 0; transform: rotate(45deg) scale(.25); }
+  30% { opacity: 1; transform: rotate(45deg) scale(1.15); }
+  100% { opacity: 0; transform: rotate(45deg) scale(1.7); }
 }
 
 /* 爆裂碎片 */
@@ -694,6 +742,7 @@ button {
   .shockwave { animation: none; opacity: 0; }
   .board-flash { animation: none; opacity: 0; }
   .praise { animation: none; opacity: 1; }
+  .impact { animation: none; opacity: 0; }
   .chain-badge { animation: none; }
   .hud-pieces.tick { animation: none; }
   .confetti { animation-duration: .5s; }

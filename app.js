@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.0 打击感增强包）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.1 激光束演出）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -6,9 +6,9 @@
  * - 战役（80 关，形状棋自第二章登场，每章第一关直接开放）；无限挑战（难度递增、失败即结算、跑分纪录）；
  *   每日挑战（日期种子，全站同款，星数取当天最佳）。
  * 演出核心：消费 applyMove 的 trace，
- * 按波次播放「分裂爆炸 → 冲击光点按形状波及路径按距离飞行 → 到达 +1」。
+ * 按波次播放「分裂爆炸 → 激光束按形状波及路径射向目标 → 命中爆闪 +1」。
  * 连锁波数驱动徽章、震屏与音高阶梯；动画中点击可加速。
- * 特殊形状（横线/竖线/三角 T/方框）各有棋形外观与冲击光点配色；
+ * 特殊形状（横线/竖线/三角 T/方框）各有棋形外观与激光束配色；
  * 一次点击消除多颗时播放激励音（波内多消喝彩 + 结算连消琶音）。
  * v1.6.0 打击感增强：
  * - 分裂演出：冲击波环（形状族配色）+ 形状定向碎片（横线沿行/竖线沿列/三角朝角/方框八向）；
@@ -17,6 +17,9 @@
  *   剩余棋子逐波倒计时脉冲。
  * - 音效重制：压缩器母线 + 三层爆音（谐波滑落 + 低频 kick + 噪声爆裂）；
  *   音高阶梯叠高八度 sparkle、命中双音、喝彩三和弦、评价配套音、琶音八度冠音。
+ * v1.6.1 激光束：冲击波传播从「光点飞行」改为「激光束射击」——白亮芯 + 族色辉光，
+ * 从爆源极速伸出命中（命中端亮头 + 十字星爆闪），随后驻留发光、收细消散；
+ * 多目标齐射读得出形状（整行扫射/纵列光雨/T 形光阵/八向环射）。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -32,7 +35,7 @@
 
   /* kind → 棋子形状 class（0 = 普通圆点，无 class） */
   const KIND_CLASS = ['', 'k-row', 'k-col', 'k-tri-u', 'k-tri-d', 'k-tri-l', 'k-tri-r', 'k-sq'];
-  /* kind → 冲击光点配色 class（0 = 默认橙） */
+  /* kind → 激光束/命中爆闪配色 class（0 = 默认橙） */
   const SPARK_CLASS = ['', 'sk-row', 'sk-col', 'sk-tri', 'sk-tri', 'sk-tri', 'sk-tri', 'sk-sq'];
   const kindClassOf = v => KIND_CLASS[E.kindOf(v)] || '';
 
@@ -56,8 +59,9 @@
   const KEY_DAILY = 'cc-daily-v1';
   const KEY_RUN = 'cc-challenge-best-v1';
   const KEY_SOUND = 'cc-sound';
-  const SPARK_UNIT = 55;   // 每格冲击波的飞行毫秒数
-  const SPARK_BASE = 90;   // 光点基础飞行毫秒数
+  const BEAM_BASE = 90;    // 激光伸展基础毫秒（v1.6.1：光点飞行改激光束）
+  const BEAM_UNIT = 12;    // 每格距离增加的伸展毫秒（保留远近差序）
+  const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   let progress = loadProgress();
   let levelIdx = -1;
@@ -178,6 +182,11 @@
         tone(110, 0.32, { type: 'sawtooth', gain: 0.12, slide: 45 });
         tone(150, 0.18, { type: 'sine', gain: 0.26, slide: 42 });
         noise(0.16, { from: 2600, to: 280, gain: 0.15 });
+      },
+      /* v1.6.1 电光音：激光齐射的“滋”——与 boom 叠成「充能爆射」 */
+      zap() {
+        tone(920, 0.09, { type: 'sawtooth', gain: 0.05, slide: 320 });
+        tone(1840, 0.05, { type: 'square', gain: 0.022, slide: 920, delay: 0.012 });
       },
       /* 激励音：波内一次多消 → 大三度和弦喝彩（音高随消除数上抬） */
       cheer(n) {
@@ -553,29 +562,61 @@
     }
   }
 
-  function flySpark(from, to, dist, k, rects, wrapRect) {
+  /* v1.6.1 命中爆闪：光束击中目标瞬间炸开一颗十字星（族色辉光） */
+  function impactFlash(x, y, k) {
+    const el = document.createElement('div');
+    el.className = 'impact' + (SPARK_CLASS[k] ? ' ' + SPARK_CLASS[k] : '');
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    boardWrap.appendChild(el);
+    setTimeout(() => el.remove(), 320);
+  }
+
+  /* v1.6.1 激光束：爆源向目标射出一道光束（替代光点飞行）——
+   * 白亮芯 + 形状族色辉光，从爆源极速「伸出」击中（激光感），
+   * 命中瞬间目标爆闪 + 弹起，随后光束驻留发光、收细消散。
+   * 多目标齐射 → 横线=整行扫射 / 竖线=纵列光雨 / 三角=T 形光阵 / 方框=八向环射。 */
+  function flyBeam(from, to, dist, k, rects, wrapRect) {
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
       const b = cellCenter(to, rects, wrapRect);
-      const spark = document.createElement('div');
-      spark.className = 'spark' + (SPARK_CLASS[k] ? ' ' + SPARK_CLASS[k] : '');
-      spark.style.left = '0';
-      spark.style.top = '0';
-      spark.style.transform = 'translate(' + (a.x - 5) + 'px,' + (a.y - 5) + 'px)';
-      boardWrap.appendChild(spark);
-      void spark.offsetWidth;
-      const dur = Math.max(40, (SPARK_BASE + dist * SPARK_UNIT) * animSpeed);
-      spark.style.transitionDuration = dur + 'ms';
-      spark.style.transform = 'translate(' + (b.x - 5) + 'px,' + (b.y - 5) + 'px)';
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.hypot(dx, dy);
+      const ang = Math.atan2(dy, dx);
+      const beam = document.createElement('div');
+      beam.className = 'beam' + (SPARK_CLASS[k] ? ' ' + SPARK_CLASS[k] : '');
+      beam.style.left = a.x + 'px';
+      beam.style.top = a.y + 'px';
+      beam.style.width = Math.max(len, 6) + 'px';
+      boardWrap.appendChild(beam);
+      /* 激光极速：击中耗时远短于旧光点飞行（节奏更紧凑）；
+       * reduced-motion 时压缩为最小脉冲。 */
+      const fire = REDUCED_MOTION ? 30 : Math.max(50, (BEAM_BASE + dist * BEAM_UNIT) * animSpeed);
+      const hold = REDUCED_MOTION ? 40 : 70 * animSpeed;
+      const fade = REDUCED_MOTION ? 60 : 210;
+      const total = fire + fade;
+      const rot = 'rotate(' + ang + 'rad)';
+      try {
+        beam.animate([
+          { transform: rot + ' scaleX(.04)', opacity: 1, easing: 'cubic-bezier(.15,.75,.3,1)' },
+          { transform: rot + ' scaleX(1)', opacity: 1, offset: fire / total },
+          { transform: rot + ' scaleX(1)', opacity: .85, offset: Math.min((fire + hold) / total, .92) },
+          { transform: rot + ' scaleY(.25)', opacity: 0 }
+        ], { duration: total, fill: 'forwards' });
+      } catch (e) { /* WAAPI 不可用则静态显示光束 */ }
+      /* 击中瞬间：目标处爆闪 + 弹起（激光到达即命中） */
       setTimeout(() => {
-        spark.remove();
+        impactFlash(b.x, b.y, k);
         const p = pieceEl(to);
         if (p) {
           const next = Number(p.textContent) + 1;
           bumpPiece(to, Math.min(next, 3));
         }
+      }, fire);
+      setTimeout(() => {
+        beam.remove();
         resolve();
-      }, dur);
+      }, fire + hold);
     });
   }
 
@@ -641,6 +682,7 @@
       }
       sfx.wave(waveN);
       sfx.boom();
+      if (wave.boosts.length) sfx.zap();
       if (n >= 2) sfx.cheer(n);
 
       /* v1.6.0 碎片预算：波内分裂过多时每颗减料，保住移动端帧率 */
@@ -651,7 +693,7 @@
       tickPieces(Math.max(0, piecesLeft - n));
       piecesLeft -= n;
 
-      const flights = wave.boosts.map(b => flySpark(b.from, b.to, b.dist, b.k, rects, wrapRect));
+      const flights = wave.boosts.map(b => flyBeam(b.from, b.to, b.dist, b.k, rects, wrapRect));
       await Promise.all(flights);
       await wait(130 * animSpeed);
 
