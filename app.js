@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.4 单裂开光 + 刀锋收口）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.5 震荡波修形 + 波面裁剪）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -35,6 +35,11 @@
  * - 分裂即开光路（有无目标都开）：单个棋子裂开也射贯穿刀/震荡环——终波不再只有碎片飞散，
  *   每一爆都看得到波及范围的光（十字四向刀/横竖一刀/T 形刀阵/方框震荡环）；
  * - 刀锋收口：贯穿余量 0.45 格 → 0.1 格，光刀不再大段冲出棋盘，刀尖亮点在边缘收口。
+ * v1.6.5 震荡波修形 + 波面裁剪：
+ * - 震荡环去掉内阴影雾面（旧版像一团绿雾方块）——改利落方形描边 + 外辉光，圆角 22%→12%；
+ *   余波环细一档（1.5px、无辉光、峰值透明度减半），收尾 280ms→170ms 少拖影；
+ * - 波面裁剪：环绘制在贴棋盘的 .ripple-clip 容器（overflow hidden）内，
+ *   靠边的方框震荡波贴边截断，不再超出棋盘。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -670,7 +675,10 @@
    * 方环外沿同时扫到边与角（与切比雪夫格距天然同步），环沿到达即全部命中
    * （十字星爆闪 + 弹起），第二圈延迟跟随制造「震荡」余波。
    * v1.6.3 修复：基础样式改为隐藏态 + fill:forwards——动画结束后保持终帧（透明），
-   * 不再回退到未居中的全不透明状态（旧版 fill:backwards 会在移除前闪现错位方环）。 */
+   * 不再回退到未居中的全不透明状态（旧版 fill:backwards 会在移除前闪现错位方环）。
+   * v1.6.5 修形：环改利落方形描边（去内阴影雾面）+ 余波环细一档、峰值淡一档，
+   * 收尾缩短少拖影；环绘制在贴棋盘的裁剪容器（.ripple-clip）内——
+   * 靠边的方框震荡波贴边截断，不再超出棋盘。 */
   function flyRipple(from, boosts, rects, wrapRect) {
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
@@ -680,22 +688,33 @@
       const fire = REDUCED_MOTION ? 30 : Math.max(50, (RING_BASE + maxDist * RING_UNIT) * animSpeed);
       const hold = REDUCED_MOTION ? 40 : 70 * animSpeed;
       sfx.pulse();
+      /* v1.6.5 波面裁剪：环只在棋盘范围内绘制（贴边截断） */
+      const bRect = boardEl.getBoundingClientRect();
+      const cx = bRect.left - wrapRect.left, cy = bRect.top - wrapRect.top;
+      const clip = document.createElement('div');
+      clip.className = 'ripple-clip';
+      clip.style.left = cx + 'px';
+      clip.style.top = cy + 'px';
+      clip.style.width = bRect.width + 'px';
+      clip.style.height = bRect.height + 'px';
+      boardWrap.appendChild(clip);
+      setTimeout(() => clip.remove(), fire + 480);
       for (let r = 0; r < 2; r++) {
         const ring = document.createElement('div');
-        ring.className = 'ripple';
-        ring.style.left = a.x + 'px';
-        ring.style.top = a.y + 'px';
+        ring.className = 'ripple' + (r ? ' echo' : '');
+        ring.style.left = (a.x - cx) + 'px';
+        ring.style.top = (a.y - cy) + 'px';
         ring.style.width = ring.style.height = (cell * (2 * maxDist + 1.1)) + 'px';
         ring.style.opacity = '0';        /* 基础隐藏态：延迟期与结束后都不闪跳 */
-        ring.style.transform = 'translate(-50%,-50%) scale(.12)';
-        boardWrap.appendChild(ring);
+        ring.style.transform = 'translate(-50%,-50%) scale(.15)';
+        clip.appendChild(ring);
         const delay = REDUCED_MOTION || r === 0 ? 0 : 80;
-        const dur = REDUCED_MOTION ? fire + 60 : fire + 280;
+        const dur = REDUCED_MOTION ? fire + 60 : fire + 170;
+        const peak = r === 0 ? 1 : .5;   /* 主环亮，余波环淡一档 */
         try {
           ring.animate([
-            { transform: 'translate(-50%,-50%) scale(.12)', opacity: 0, easing: 'cubic-bezier(.15,.75,.3,1)' },
-            { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: Math.min(fire / dur, .8) },
-            { transform: 'translate(-50%,-50%) scale(1)', opacity: .85, offset: Math.min((fire + hold) / dur, .9) },
+            { transform: 'translate(-50%,-50%) scale(.15)', opacity: 0, easing: 'cubic-bezier(.2,.8,.3,1)' },
+            { transform: 'translate(-50%,-50%) scale(1)', opacity: peak, offset: Math.min(fire / dur, .82) },
             { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }
           ], { duration: dur, delay, fill: 'forwards' });
         } catch (e) { /* WAAPI 不可用则保持隐藏 */ }

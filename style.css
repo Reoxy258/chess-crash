@@ -463,17 +463,27 @@ button {
 .beam.sk-col { --bc: #4fa3d1; --bg: rgba(79, 163, 209, .65); --bg2: rgba(79, 163, 209, .28); }
 .beam.sk-tri { --bc: #9b59d0; --bg: rgba(155, 89, 208, .65); --bg2: rgba(155, 89, 208, .28); }
 
-/* v1.6.2 方框震荡波：方框爆开不走激光——从源扩散两圈方形震荡环（绿族），
-   方环外沿同时扫到 8 邻域即命中；尺寸/动画由 JS（WAAPI）驱动 */
-.ripple {
-  --bc: #3aa76d;
-  --bg: rgba(58, 167, 109, .55);
+/* v1.6.2 方框震荡波（v1.6.5 修形）：方框爆开不走激光——从源扩散两圈方形震荡环。
+   v1.6.5：主环为利落的方形描边 + 外辉光（去掉内阴影雾面），第二圈为细一档的余波；
+   环绘制在 .ripple-clip（贴棋盘、overflow hidden）内——靠边的方框震荡波贴边截断，
+   不再超出棋盘。尺寸/动画由 JS（WAAPI）驱动 */
+.ripple-clip {
   position: absolute;
-  border: 3px solid var(--bc);
-  border-radius: 22%;
-  box-shadow: 0 0 12px 3px var(--bg), inset 0 0 12px 3px var(--bg);
+  overflow: hidden;
   pointer-events: none;
   z-index: 5;
+}
+.ripple {
+  position: absolute;
+  border: 2.5px solid #46b878;
+  border-radius: 12%;
+  box-shadow: 0 0 10px 2px rgba(70, 184, 120, .45);
+  pointer-events: none;
+}
+.ripple.echo {                    /* 余波环：细一档、无辉光（峰值透明度也淡一档） */
+  border-width: 1.5px;
+  border-color: rgba(70, 184, 120, .8);
+  box-shadow: none;
 }
 
 /* v1.6.1 命中爆闪：光束到达瞬间目标处炸开十字星（中心亮核 + X 光芒） */
@@ -534,7 +544,7 @@ button {
   z-index: 4;
   animation: shock .45s cubic-bezier(.2, .7, .3, 1) forwards;
 }
-.shockwave.sq { border-radius: 22%; }
+.shockwave.sq { border-radius: 12%; }
 @keyframes shock {
   0% { transform: translate(-50%, -50%) scale(.3); opacity: .95; }
   100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; }
