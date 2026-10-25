@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.2 震荡波与激光加粗）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.3 贯穿激光刀 + 震荡波修复）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -23,6 +23,14 @@
  * v1.6.2 震荡波与激光加粗：方框不再走激光——从源扩散两圈方形震荡环（绿族），
  * 方环外沿同时扫到 8 邻域（与切比雪夫格距天然同步命中），第二圈延迟跟随成「震荡」余波；
  * 激光束整体加粗（8px 双层辉光 + 更亮白芯 + 更大命中头），方框源冲击波环也改方形轮廓。
+ * v1.6.3 贯穿激光刀 + 震荡波修复：
+ * - 激光重构为「贯穿刀」：按爆源分组一次开刀——十字=整行+整列四向全刀（贯穿全盘的十字光）、
+ *   横线一刀贯穿整行、竖线贯穿整列、三角=整行+半列的 T 形刀阵；刀锋贯出棋盘边缘。
+ *   刀尖亮点沿线性扫射推进，扫过目标的瞬间即命中（格距 × 每格毫秒，前端与动画同步）；
+ *   先充能（刀尖亮起）再扫射，随后驻留发光、收细消散。
+ * - 修复震荡波收尾跳变：环改 fill:forwards + 基础隐藏样式，动画结束后不再回退到
+ *   未居中的全不透明状态（旧版会在移除前闪现 60ms 错位方环）。
+ * - 激光再加粗：10px 束身 + 3.2px 白芯 + 15px 命中头，双层辉光增强。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -62,8 +70,10 @@
   const KEY_DAILY = 'cc-daily-v1';
   const KEY_RUN = 'cc-challenge-best-v1';
   const KEY_SOUND = 'cc-sound';
-  const BEAM_BASE = 90;    // 激光伸展基础毫秒（v1.6.1：光点飞行改激光束）
-  const BEAM_UNIT = 12;    // 每格距离增加的伸展毫秒（保留远近差序）
+  const RING_BASE = 70;    // 震荡波扩散基础毫秒（v1.6.2 方框方环）
+  const RING_UNIT = 12;    // 震荡波每格扩散毫秒
+  const LASER_CHARGE = 45; // 贯穿激光充能毫秒（v1.6.3：刀尖先亮起再扫射）
+  const LASER_RATE = 15;   // 贯穿激光每格扫射毫秒——刀尖扫到即命中
   const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   let progress = loadProgress();
@@ -581,63 +591,86 @@
     setTimeout(() => el.remove(), 320);
   }
 
-  /* v1.6.1 激光束：爆源向目标射出一道光束（替代光点飞行）——
-   * 白亮芯 + 形状族色辉光，从爆源极速「伸出」击中（激光感），
-   * 命中瞬间目标爆闪 + 弹起，随后光束驻留发光、收细消散。
-   * 多目标齐射 → 横线=整行扫射 / 竖线=纵列光雨 / 三角=T 形光阵 / 方框=八向环射。 */
-  function flyBeam(from, to, dist, k, rects, wrapRect) {
+  /* v1.6.3 贯穿激光刀：同一爆源的所有目标共享一组「刀」——按形状一次开出贯穿光路：
+   * 十字=整行+整列四向全刀（贯穿全盘的十字光）、横线=整行一刀、竖线=整列一刀、
+   * 三角=整行+半列的 T 形刀阵。刀锋冲出棋盘边缘（贯穿感），刀尖亮点沿线性扫射推进
+   * ——扫过目标的瞬间即命中（爆闪 + 弹起），随后驻留发光、收细消散。
+   * 充能(亮刀尖) → 扫射(线性) → 驻留 → 消散四段。 */
+  function flyLaser(from, boosts, rects, wrapRect) {
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
-      const b = cellCenter(to, rects, wrapRect);
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.hypot(dx, dy);
-      const ang = Math.atan2(dy, dx);
-      const beam = document.createElement('div');
-      beam.className = 'beam' + (SPARK_CLASS[k] ? ' ' + SPARK_CLASS[k] : '');
-      beam.style.left = a.x + 'px';
-      beam.style.top = a.y + 'px';
-      beam.style.width = Math.max(len, 6) + 'px';
-      boardWrap.appendChild(beam);
-      /* 激光极速：击中耗时远短于旧光点飞行（节奏更紧凑）；
-       * reduced-motion 时压缩为最小脉冲。 */
-      const fire = REDUCED_MOTION ? 30 : Math.max(50, (BEAM_BASE + dist * BEAM_UNIT) * animSpeed);
+      const k = boosts[0].k;
+      const size = Math.round(Math.sqrt(rects.length));
+      const r = (from / size) | 0, c = from % size;
+      const cell = rects[from].width;
+      const half = cell / 2;
+      const over = cell * 0.45;          // 贯穿余量：刀锋冲出棋盘边缘
+      /* 行列两端中心 → 四向刀全长（到棋盘边缘外 over） */
+      const rowL = cellCenter(r * size, rects, wrapRect).x;
+      const rowR = cellCenter(r * size + size - 1, rects, wrapRect).x;
+      const colT = cellCenter(c, rects, wrapRect).y;
+      const colB = cellCenter((size - 1) * size + c, rects, wrapRect).y;
+      const pitch = size > 1 ? (rowR - rowL) / (size - 1) : cell;   // 格距（含缝）
+      const fullLen = [a.x - (rowL - half - over), (rowR + half + over) - a.x,
+                       a.y - (colT - half - over), (colB + half + over) - a.y];
+      const charge = REDUCED_MOTION ? 20 : Math.max(25, LASER_CHARGE * animSpeed);
+      const rate = REDUCED_MOTION ? 8 : Math.max(6, LASER_RATE * animSpeed);
       const hold = REDUCED_MOTION ? 40 : 70 * animSpeed;
-      const fade = REDUCED_MOTION ? 60 : 210;
-      const total = fire + fade;
-      const rot = 'rotate(' + ang + 'rad)';
-      try {
-        beam.animate([
-          { transform: rot + ' scaleX(.04)', opacity: 1, easing: 'cubic-bezier(.15,.75,.3,1)' },
-          { transform: rot + ' scaleX(1)', opacity: 1, offset: fire / total },
-          { transform: rot + ' scaleX(1)', opacity: .85, offset: Math.min((fire + hold) / total, .92) },
-          { transform: rot + ' scaleY(.25)', opacity: 0 }
-        ], { duration: total, fill: 'forwards' });
-      } catch (e) { /* WAAPI 不可用则静态显示光束 */ }
-      /* 击中瞬间：目标处爆闪 + 弹起（激光到达即命中） */
-      setTimeout(() => {
-        impactFlash(b.x, b.y, k);
-        const p = pieceEl(to);
-        if (p) {
-          const next = Number(p.textContent) + 1;
-          bumpPiece(to, Math.min(next, 3));
-        }
-      }, fire);
-      setTimeout(() => {
-        beam.remove();
-        resolve();
-      }, fire + hold);
+      const fade = REDUCED_MOTION ? 60 : 180;
+      /* 开刀方向：十字 LRUD（整行+整列）/ 横线 LR / 竖线 UD / 三角 LR+半列或 UD+半行 */
+      const SHAPE_SIDES = { 0: [0, 1, 2, 3], 1: [0, 1], 2: [2, 3], 3: [0, 1, 2], 4: [0, 1, 3], 5: [2, 3, 0], 6: [2, 3, 1] };
+      let sweepMax = 0;
+      for (const s of (SHAPE_SIDES[k] || [0, 1, 2, 3])) {
+        const len = fullLen[s];
+        sweepMax = Math.max(sweepMax, len / pitch * rate);
+        const beam = document.createElement('div');
+        beam.className = 'beam' + (SPARK_CLASS[k] ? ' ' + SPARK_CLASS[k] : '');
+        beam.style.left = a.x + 'px';
+        beam.style.top = a.y + 'px';
+        beam.style.width = Math.max(len, 6) + 'px';
+        beam.style.opacity = '0';       /* 基础隐藏：WAAPI 缺失/结束时都不闪跳 */
+        boardWrap.appendChild(beam);
+        const sweep = len / pitch * rate;
+        const total = charge + sweep + hold + fade;
+        const rot = 'rotate(' + [Math.PI, 0, -Math.PI / 2, Math.PI / 2][s] + 'rad)';
+        try {
+          beam.animate([
+            { transform: rot + ' scaleX(.05)', opacity: 0, easing: 'linear' },
+            { transform: rot + ' scaleX(.05)', opacity: 1, offset: charge / total, easing: 'linear' }, /* 充能：刀尖亮起 */
+            { transform: rot + ' scaleX(1)', opacity: 1, offset: (charge + sweep) / total },           /* 线性扫射到边 */
+            { transform: rot + ' scaleX(1)', opacity: .9, offset: Math.min((charge + sweep + hold) / total, .96) },
+            { transform: rot + ' scaleX(1) scaleY(.2)', opacity: 0 }                                   /* 收细消散 */
+          ], { duration: total, fill: 'forwards' });
+        } catch (e) { /* WAAPI 不可用则不显示 */ }
+        setTimeout(() => beam.remove(), total + 40);
+      }
+      /* 刀尖扫过即命中：impact 按格距线性排布（与扫射动画同速推进） */
+      for (const b of boosts) {
+        setTimeout(() => {
+          const c2 = cellCenter(b.to, rects, wrapRect);
+          impactFlash(c2.x, c2.y, b.k);
+          const p = pieceEl(b.to);
+          if (p) {
+            const next = Number(p.textContent) + 1;
+            bumpPiece(b.to, Math.min(next, 3));
+          }
+        }, charge + b.dist * rate);
+      }
+      setTimeout(() => resolve(), charge + sweepMax + hold);
     });
   }
 
   /* v1.6.2 方框震荡波：方框爆开不走激光，而是从源扩散两圈方形震荡环（绿族）——
    * 方环外沿同时扫到边与角（与切比雪夫格距天然同步），环沿到达即全部命中
-   * （十字星爆闪 + 弹起），第二圈延迟跟随制造「震荡」余波。 */
+   * （十字星爆闪 + 弹起），第二圈延迟跟随制造「震荡」余波。
+   * v1.6.3 修复：基础样式改为隐藏态 + fill:forwards——动画结束后保持终帧（透明），
+   * 不再回退到未居中的全不透明状态（旧版 fill:backwards 会在移除前闪现错位方环）。 */
   function flyRipple(from, boosts, rects, wrapRect) {
     return new Promise(resolve => {
       const a = cellCenter(from, rects, wrapRect);
       const cell = rects[from].width;
       const maxDist = Math.max.apply(null, boosts.map(b => b.dist));
-      const fire = REDUCED_MOTION ? 30 : Math.max(50, (BEAM_BASE + maxDist * BEAM_UNIT) * animSpeed);
+      const fire = REDUCED_MOTION ? 30 : Math.max(50, (RING_BASE + maxDist * RING_UNIT) * animSpeed);
       const hold = REDUCED_MOTION ? 40 : 70 * animSpeed;
       sfx.pulse();
       for (let r = 0; r < 2; r++) {
@@ -646,17 +679,19 @@
         ring.style.left = a.x + 'px';
         ring.style.top = a.y + 'px';
         ring.style.width = ring.style.height = (cell * (2 * maxDist + 1.1)) + 'px';
+        ring.style.opacity = '0';        /* 基础隐藏态：延迟期与结束后都不闪跳 */
+        ring.style.transform = 'translate(-50%,-50%) scale(.12)';
         boardWrap.appendChild(ring);
         const delay = REDUCED_MOTION || r === 0 ? 0 : 80;
         const dur = REDUCED_MOTION ? fire + 60 : fire + 280;
         try {
           ring.animate([
             { transform: 'translate(-50%,-50%) scale(.12)', opacity: 0, easing: 'cubic-bezier(.15,.75,.3,1)' },
-            { transform: 'translate(-50%,-50%) scale(1)', opacity: .95, offset: Math.min(fire / dur, .8) },
+            { transform: 'translate(-50%,-50%) scale(1)', opacity: 1, offset: Math.min(fire / dur, .8) },
             { transform: 'translate(-50%,-50%) scale(1)', opacity: .85, offset: Math.min((fire + hold) / dur, .9) },
             { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }
-          ], { duration: dur, delay, fill: 'backwards' });
-        } catch (e) { /* WAAPI 不可用则静态 */ }
+          ], { duration: dur, delay, fill: 'forwards' });
+        } catch (e) { /* WAAPI 不可用则保持隐藏 */ }
         setTimeout(() => ring.remove(), dur + delay + 60);
       }
       /* 环沿扫过邻域：全部同时命中（方环外沿同时到达边与角） */
@@ -718,14 +753,14 @@
       const wave = trace.waves[w];
       const waveN = w + 1;
       const n = wave.splits.length;
-      /* v1.6.2 波形分流：方框源的波走震荡波（每源一圈方环），其余走激光束 */
-      const laserBoosts = [];
+      /* v1.6.3 波形分流：方框源走震荡波（每源一圈方环）；激光按爆源分组——
+       * 同一爆源的目标共享一组贯穿刀（整行/整列/T 形刀阵，不再逐目标单射） */
+      const laserBySrc = new Map();
       const rippleBySrc = new Map();
       for (const b of wave.boosts) {
-        if (b.k === 7) {
-          if (!rippleBySrc.has(b.from)) rippleBySrc.set(b.from, []);
-          rippleBySrc.get(b.from).push(b);
-        } else laserBoosts.push(b);
+        const m = b.k === 7 ? rippleBySrc : laserBySrc;
+        if (!m.has(b.from)) m.set(b.from, []);
+        m.get(b.from).push(b);
       }
       if (w >= 1) {
         chainBadge.textContent = '连锁 ×' + waveN;
@@ -746,7 +781,7 @@
       }
       sfx.wave(waveN);
       sfx.boom();
-      if (laserBoosts.length) sfx.zap();  /* 电光音只配激光；方框的震荡低鸣在 flyRipple 内 */
+      if (laserBySrc.size) sfx.zap();  /* 电光音只配激光；方框的震荡低鸣在 flyRipple 内 */
       if (n >= 2) sfx.cheer(n);
 
       /* v1.6.0 碎片预算：波内分裂过多时每颗减料，保住移动端帧率 */
@@ -758,7 +793,7 @@
       piecesLeft -= n;
 
       const flights = [];
-      for (const b of laserBoosts) flights.push(flyBeam(b.from, b.to, b.dist, b.k, rects, wrapRect));
+      for (const [src, list] of laserBySrc) flights.push(flyLaser(src, list, rects, wrapRect));
       for (const list of rippleBySrc.values()) flights.push(flyRipple(list[0].from, list, rects, wrapRect));
       await Promise.all(flights);
       await wait(130 * animSpeed);

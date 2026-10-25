@@ -1,7 +1,7 @@
 /* 十字连爆 · chess-crash — 响应式休闲解谜界面
  * 点数即色温：1 天蓝（凉）→ 2 琥珀（暖）→ 3 赤红（将爆预警，呼吸脉冲）
- * 演出：激光束射击（粗白亮芯 + 族色双层辉光）、方框震荡波、命中十字星爆闪、
- * 定向爆裂碎片、冲击波环、顿帧、震屏三档、连锁徽章、弹字评价、星级弹入
+ * 演出：贯穿激光刀（横竖整行贯穿 + T 形刀阵，10px 束身双层辉光）、方框震荡波、
+ * 命中十字星爆闪、定向爆裂碎片、冲击波环、顿帧、震屏三档、连锁徽章、弹字评价、星级弹入
  */
 
 :root {
@@ -418,17 +418,18 @@ button {
   white-space: nowrap;
 }
 
-/* v1.6.1 激光束（v1.6.2 加粗）：爆源向目标射出的光束——粗白亮芯 + 形状族色双层辉光，头部亮点即命中端 */
+/* v1.6.1 激光束（v1.6.3 贯穿刀再加粗）：爆源射出的贯穿光刀——10px 粗束身 +
+ * 3.2px 白亮芯 + 形状族色双层辉光，头部亮点即刀尖（扫到即命中） */
 .beam {
   --bc: #ff8a3d;                  /* 族色 */
-  --bg: rgba(255, 138, 61, .6);   /* 近距辉光 */
-  --bg2: rgba(255, 138, 61, .25); /* 远距大辉光 */
+  --bg: rgba(255, 138, 61, .65);  /* 近距辉光 */
+  --bg2: rgba(255, 138, 61, .28); /* 远距大辉光 */
   position: absolute;
-  height: 8px;
-  margin-top: -4px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #fff 0%, var(--bc) 55%, var(--bc) 100%);
-  box-shadow: 0 0 10px 3px var(--bg), 0 0 24px 9px var(--bg2);
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #fff 0%, var(--bc) 40%, var(--bc) 100%);
+  box-shadow: 0 0 12px 4px var(--bg), 0 0 28px 10px var(--bg2);
   transform-origin: 0 50%;
   pointer-events: none;
   z-index: 5;
@@ -439,28 +440,28 @@ button {
   left: 2px;
   right: 2px;
   top: 50%;
-  height: 2.6px;
-  margin-top: -1.3px;
+  height: 3.2px;
+  margin-top: -1.6px;
   border-radius: 2px;
   background: #fff;
-  box-shadow: 0 0 5px 2px #fff;
+  box-shadow: 0 0 6px 2px #fff;
 }
-.beam::before {                    /* 光束头部亮点（命中端） */
+.beam::before {                    /* 刀尖亮点（扫射前端，扫到即命中） */
   content: '';
   position: absolute;
-  right: -4px;
+  right: -5px;
   top: 50%;
-  width: 13px;
-  height: 13px;
-  margin-top: -6.5px;
+  width: 15px;
+  height: 15px;
+  margin-top: -7.5px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, var(--bc) 55%, transparent 100%);
-  box-shadow: 0 0 10px 4px var(--bg);
+  background: radial-gradient(circle, #fff 0%, var(--bc) 50%, transparent 100%);
+  box-shadow: 0 0 12px 5px var(--bg);
 }
 /* 形状波配色：横线琥珀 / 竖线蓝 / 三角紫（普通十字默认橙；方框走震荡波不用激光） */
-.beam.sk-row { --bc: #f5b31a; --bg: rgba(245, 179, 26, .6); --bg2: rgba(245, 179, 26, .25); }
-.beam.sk-col { --bc: #4fa3d1; --bg: rgba(79, 163, 209, .6); --bg2: rgba(79, 163, 209, .25); }
-.beam.sk-tri { --bc: #9b59d0; --bg: rgba(155, 89, 208, .6); --bg2: rgba(155, 89, 208, .25); }
+.beam.sk-row { --bc: #f5b31a; --bg: rgba(245, 179, 26, .65); --bg2: rgba(245, 179, 26, .28); }
+.beam.sk-col { --bc: #4fa3d1; --bg: rgba(79, 163, 209, .65); --bg2: rgba(79, 163, 209, .28); }
+.beam.sk-tri { --bc: #9b59d0; --bg: rgba(155, 89, 208, .65); --bg2: rgba(155, 89, 208, .28); }
 
 /* v1.6.2 方框震荡波：方框爆开不走激光——从源扩散两圈方形震荡环（绿族），
    方环外沿同时扫到 8 邻域即命中；尺寸/动画由 JS（WAAPI）驱动 */
