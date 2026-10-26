@@ -211,6 +211,12 @@
 - 修复叠加 bug：v1.7.2 删掉基类 `animation: none` 后，div 上的 `p3pulse` 矩形环会与 `::after` 三角环**同时渲染**（实测复现 `divAnimation: p3pulse`）——恢复基类 `animation: none` 拦掉 div 矩形环（`::after` 的 triring 在伪元素自身规则上不受影响；bump/blast/hintglow 优先级更高或源序在后，照旧接管）；动效减弱偏好下 `::after` 动画一并关闭。
 - 实测：3-1 p3 ▲ div 动画 `none`、盒内仅 `triring` 一个动画；`::after` 与 `::before` clip-path 逐字符一致；拨动画时间至中段 300ms 时 scale 1.083/opacity 0.216、峰值 990ms 时 scale 1.16/opacity 0；5-1 非 p3 三角 `::after` content 为 `none`（不生成）。纯 CSS 改动，规则与演出零变化。
 
+## 验证记录（1.7.4）——三角渐变示警 + 点击不留框
+
+- **三角 p3 弃环改渐变**：移除脉冲预警环（v1.7.2 光环心跳 → v1.7.3 贴形环 → 用户仍不需要动态红框），`::before` 改填**黄→橙→红三段渐变**（`#ffd23f → #ff8a3d 38% → var(--p3)`），从三角尖「烧」到宽边——数字所在的宽边半段落在橙红区（白字对比与 p2 琥珀持平），静态一眼可辨「再点即爆」。四朝向各自定向：▲ 180deg、▼ 0deg、◀ 90deg、▶ 270deg。用 `background-image`（0,3,1）而非简写：底层基类 `var(--pc)` 赤红仍在，万一不支持渐变退回纯红；纯静态零动画，动效减弱偏好天然无需适配；三角基类 `animation: none` 保留（继续拦掉 div 上的 p3pulse 环，bump/blast/hintglow 照旧接管）；`triring` 关键帧、`::after` 规则、clip-path 的 `::after` 扩展、动效减弱 `::after` 行全部移除。其他形状（圆/线/方）的 p3 预警环保留不变。
+- **点击不留焦点描边**：`onFocus` 增加 `show` 参数——鼠标/触摸点击（`pointerdown`）传 `false`：只更新 `focusIdx`（供方向键起步、Enter 直落），**不再加 `.focus` 类**，点击后无描边框；键盘方向键导航传 `true`：照常显示描边（键盘玩家仍能看到光标位置）。`.cell.focus .piece` 描边规则保留、仅键盘触发。
+- 实测（5-1）：▼/▶ 三角 `::before` 渐变方向与配色正确（`0deg`/`270deg`，黄→橙→红）；p1 三角 `background-image: none`、纯色 `#4fa3d1` 不变；点击棋子后 `.cell.focus` 计数 0；按方向键后 `.cell.focus` 计数 1、描边出现。实测（3-1）：▲ 渐变（默认 180deg）、底层 `rgb(232,84,45)` 兜底、`::after` content 为 `none`、盒内动画数组为空（零环动画）。
+
 ## 发布
 
 GitHub Pages，`main` 分支根目录。测试 → 提交 → 推送 → 线上核对。

@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.3 三角预警贴合轮廓）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.4 三角渐变示警+点击不留框）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -55,6 +55,10 @@
  * v1.7.3 三角预警贴合轮廓：预警环改为同形 ::after（与形状同 clip-path、z-index:-2
  *   藏在形状底下）放大 1.16 倍同时消隐——光环沿三角形轮廓扩散，不再走圆角矩形；
  *   周期/峰值与其他形状一致；纯 CSS 改动。
+ * v1.7.4 三角弃环改渐变+点击不留框：移除三角 p3 脉冲环（triring），
+ *   ::before 改填黄→橙→红三段渐变（尖浅宽深，静态示警）；onFocus 加 show 参数——
+ *   鼠标/触摸点击只更新焦点索引不加 .focus 类（点击后不再留描边框），
+ *   键盘方向键导航照常显示描边。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -506,7 +510,7 @@
       cell.addEventListener('pointerdown', ev => {
         ev.preventDefault();
         if (busy) { speedUp(); return; }
-        onFocus(i);
+        onFocus(i, false);
         tryPlay(i);
       });
       boardEl.appendChild(cell);
@@ -547,12 +551,14 @@
     bankBadge.classList.add('tick');
   }
 
-  function onFocus(i) {
+  function onFocus(i, show) {
     if (focusIdx >= 0 && boardEl.children[focusIdx]) {
       boardEl.children[focusIdx].classList.remove('focus');
     }
     focusIdx = i;
-    if (i >= 0) boardEl.children[i].classList.add('focus');
+    /* v1.7.4：点击不再留描边框——show 仅键盘方向键导航传 true；
+       鼠标/触摸只更新焦点索引（供方向键起步、Enter 直落），不加视觉。 */
+    if (i >= 0 && show) boardEl.children[i].classList.add('focus');
   }
 
   /* ================= 演出：消费 trace ================= */
@@ -1380,10 +1386,10 @@
     const size = game ? game.size : 6;
     let handled = true;
     switch (e.key) {
-      case 'ArrowUp': onFocus(focusIdx < 0 ? 0 : (focusIdx - size + game.cells.length) % game.cells.length); break;
-      case 'ArrowDown': onFocus(focusIdx < 0 ? 0 : (focusIdx + size) % game.cells.length); break;
-      case 'ArrowLeft': onFocus(focusIdx < 0 ? 0 : (focusIdx - 1 + game.cells.length) % game.cells.length); break;
-      case 'ArrowRight': onFocus(focusIdx < 0 ? 0 : (focusIdx + 1) % game.cells.length); break;
+      case 'ArrowUp': onFocus(focusIdx < 0 ? 0 : (focusIdx - size + game.cells.length) % game.cells.length, true); break;
+      case 'ArrowDown': onFocus(focusIdx < 0 ? 0 : (focusIdx + size) % game.cells.length, true); break;
+      case 'ArrowLeft': onFocus(focusIdx < 0 ? 0 : (focusIdx - 1 + game.cells.length) % game.cells.length, true); break;
+      case 'ArrowRight': onFocus(focusIdx < 0 ? 0 : (focusIdx + 1) % game.cells.length, true); break;
       case 'Enter': case ' ': if (focusIdx >= 0) tryPlay(focusIdx); break;
       case 'u': case 'U': undo(); break;
       case 'r': case 'R': if (!busy) resetLevel(); break;

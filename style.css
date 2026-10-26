@@ -4,6 +4,8 @@
  * 命中十字星爆闪、定向爆裂碎片、冲击波环、顿帧、震屏三档、连锁徽章、弹字评价、星级弹入
  * v1.7.2 三角 p3 预警统一为红色光环心跳（旧版 ::before 亮度脉冲提亮显过饱和，已移除）
  * v1.7.3 预警环贴合三角形轮廓：同形 ::after 放大 1.16 倍消隐（v1.7.2 的圆角矩形环不贴形）
+ * v1.7.4 三角 p3 弃环改渐变：移除脉冲环，::before 填黄→橙→红三段渐变（尖浅宽深）；
+ *   点击棋子不再留焦点描边（描边改为键盘方向键导航专用）
  */
 
 :root {
@@ -375,14 +377,13 @@ button {
    删掉覆盖后直接继承 .piece 的 clamp，与圆/线/方框同字号。
    v1.7.1 数字居中：偏移 7% → 22%——数字从宽边（旧版贴边，重心以下）上移到
    形体重心附近（约 36% 处），更居中、不再贴边显挤。
-   v1.7.2 预警改光环：p3 脉冲从 ::before 亮度呼吸改为红色扩散环（见下方 triring），
-   v1.7.3 环改为同形 ::after 放大消隐——贴合三角形轮廓。 */
+   v1.7.2 预警改光环 → v1.7.3 环贴合轮廓 → v1.7.4 弃环改渐变（见下方）。 */
 .piece.k-tri-u, .piece.k-tri-d, .piece.k-tri-l, .piece.k-tri-r {
-  isolation: isolate;             /* 独立层叠上下文：让 ::before/::after 可沉到文本之下 */
+  isolation: isolate;             /* 独立层叠上下文：让 ::before 可沉到文本之下 */
   background: transparent;          /* 底色交给 ::before（经 --pc 取点数色） */
   border-radius: 26%;               /* 光标/提示描边走圆角矩形，不被裁剪 */
-  box-shadow: none;                 /* 静态无影：形状投影在 ::before（drop-shadow），预警环在 ::after */
-  animation: none;                  /* 拦掉 div 上的 p3pulse 矩形环——三角预警只走 ::after 贴形环；
+  box-shadow: none;                 /* 静态无影：形状投影在 ::before（drop-shadow） */
+  animation: none;                  /* 拦掉 div 上的 p3pulse 环——三角 p3 不用环动画，走渐变填充（v1.7.4）；
                                        bump/blast/hintglow 优先级更高（或源序在后），照旧接管 */
   line-height: 1;                   /* 收紧行盒：数字墨水更贴近宽边，小棋盘也不越三角斜边 */
   text-shadow: 0 1px 2px rgba(30, 36, 44, .45);
@@ -400,32 +401,22 @@ button {
   filter: drop-shadow(0 2px 2px rgba(43, 52, 64, .3));
   transition: background-color .18s ease;
 }
-.piece.k-tri-u::before, .piece.k-tri-u::after { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-.piece.k-tri-d::before, .piece.k-tri-d::after { clip-path: polygon(0 0, 100% 0, 50% 100%); }
-.piece.k-tri-l::before, .piece.k-tri-l::after { clip-path: polygon(0 50%, 100% 0, 100% 100%); }
-.piece.k-tri-r::before, .piece.k-tri-r::after { clip-path: polygon(0 0, 0 100%, 100% 50%); }
-/* v1.7.2/v1.7.3 三角 p3 预警「光环心跳」：底色恒定不再提亮（旧版 ::before 亮度脉冲
-   把赤红衬得过饱和）。v1.7.2 先改在 div 上扩红环——沿圆角矩形轮廓扩散，
-   被反馈「没有贴合图形」；v1.7.3 改为同形 ::after 放大消隐：与 ::before 同 clip-path
-   的红色三角沉在形状底下（z-index:-2，scale(1) 时被形状完全遮住），动画把它放大
-   ~1.16 倍（≈ p3pulse 的 7px 环宽）同时淡出——露出的是贴合三角形轮廓的扩散光环，
-   从盒中心等比外扩，四个朝向各自贴合。周期/缓动/峰值与 p3pulse 一致（1.8s ease、55% 峰）。
-   :where 零优先级：div 层无动画，不与 bump/blast 冲突；环随 div 的 bump/blast 一起变换，
-   放大溢出盒外部分不裁剪（overflow 可见）。 */
-:where(.piece.k-tri-u.p3)::after, :where(.piece.k-tri-d.p3)::after,
-:where(.piece.k-tri-l.p3)::after, :where(.piece.k-tri-r.p3)::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;                      /* 再沉一层：藏在 ::before（形状层）之下 */
-  background: rgba(232, 84, 45, .45);
-  animation: triring 1.8s ease infinite;
-  pointer-events: none;
-}
-@keyframes triring {
-  0%, 100% { transform: scale(1); opacity: .45; }
-  55% { transform: scale(1.16); opacity: 0; }
-}
+.piece.k-tri-u::before { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.piece.k-tri-d::before { clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.piece.k-tri-l::before { clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.piece.k-tri-r::before { clip-path: polygon(0 0, 0 100%, 100% 50%); }
+/* v1.7.4 三点三角「引信渐变」：弃脉冲环（v1.7.2 光环心跳 → v1.7.3 贴形环，仍嫌动态
+   红框），改为静态黄→橙→红三段渐变填充——从三角尖「烧」到宽边：数字所在的宽边
+   半段落在橙红区（白字对比与 p2 琥珀持平），一眼可辨「再点即爆」。
+   四朝向各自从尖到边定向：▲ 180deg（上→下）、▼ 0deg（下→上）、◀ 90deg（左→右）、
+   ▶ 270deg（右→左）。用 background-image 而非 background 简写：底层基类的
+   var(--pc) 赤红仍在，万一渐变不被支持也只是退回纯红；(0,3,1) 盖过基类 ::before
+   的 background（0,2,1）。纯静态零动画：动效减弱偏好天然无需适配，
+   也不再与 bump/blast 的 div 动画互相干扰。 */
+.piece.k-tri-u.p3::before { background-image: linear-gradient(180deg, #ffd23f, #ff8a3d 38%, var(--p3)); }
+.piece.k-tri-d.p3::before { background-image: linear-gradient(0deg, #ffd23f, #ff8a3d 38%, var(--p3)); }
+.piece.k-tri-l.p3::before { background-image: linear-gradient(90deg, #ffd23f, #ff8a3d 38%, var(--p3)); }
+.piece.k-tri-r.p3::before { background-image: linear-gradient(270deg, #ffd23f, #ff8a3d 38%, var(--p3)); }
 
 @keyframes p3pulse {
   0%, 100% { box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 2px 4px rgba(43,52,64,.18), 0 0 0 0 rgba(232,84,45,.45); }
@@ -443,6 +434,8 @@ button {
   35% { transform: scale(1.52); filter: brightness(2.6); }
   100% { transform: scale(.1); filter: brightness(3); opacity: 0; }
 }
+/* v1.7.4：仅键盘方向键导航显示（onFocus 的 show 参数）——鼠标/触摸点击只更新
+   focusIdx 不加类，点击后不再留描边框；键盘玩家仍能看到光标位置。 */
 .cell.focus .piece { outline: 3px solid var(--accent); outline-offset: 2px; }
 .cell.hint-glow .piece { animation: hintglow 1s ease infinite; }
 @keyframes hintglow {
@@ -840,7 +833,6 @@ button {
 /* ---------------- 动效减弱偏好 ---------------- */
 @media (prefers-reduced-motion: reduce) {
   .piece.p3 { animation: none; }
-  .piece.k-tri-u.p3::after, .piece.k-tri-d.p3::after, .piece.k-tri-l.p3::after, .piece.k-tri-r.p3::after { animation: none; }
   .piece.bump, .piece.blast { animation-duration: .06s; }
   .board-wrap.s1, .board-wrap.s2, .board-wrap.s3 { animation: none; }
   .shockwave { animation: none; opacity: 0; }
