@@ -217,6 +217,12 @@
 - **点击不留焦点描边**：`onFocus` 增加 `show` 参数——鼠标/触摸点击（`pointerdown`）传 `false`：只更新 `focusIdx`（供方向键起步、Enter 直落），**不再加 `.focus` 类**，点击后无描边框；键盘方向键导航传 `true`：照常显示描边（键盘玩家仍能看到光标位置）。`.cell.focus .piece` 描边规则保留、仅键盘触发。
 - 实测（5-1）：▼/▶ 三角 `::before` 渐变方向与配色正确（`0deg`/`270deg`，黄→橙→红）；p1 三角 `background-image: none`、纯色 `#4fa3d1` 不变；点击棋子后 `.cell.focus` 计数 0；按方向键后 `.cell.focus` 计数 1、描边出现。实测（3-1）：▲ 渐变（默认 180deg）、底层 `rgb(232,84,45)` 兜底、`::after` content 为 `none`、盒内动画数组为空（零环动画）。
 
+## 验证记录（1.7.5）——三角渐变「升温呼吸」
+
+- **动态色彩变换**：v1.7.4 的静态三段渐变再进一步——`::after` 叠一层同形「热」渐变（`#ff8a3d → #e8542d 38% → #c9431f`，整体比底层冷色渐变热一档），`z-index:-1` 与 `::before` 同层、树序在后（盖住冷色渐变、仍在数字之下）；动画只走 **`opacity 0→1→0`**（`trihot`，1.8s ease-in-out，与其他形状 p3pulse 同周期）——呼吸间三角整体升温一档再退回：黄→橙→红 与 橙→红→深红 交叉淡入淡出，**色彩连续变换、方向语义不变**（尖浅宽深、宽边恒红系，数字始终落在橙红区）。
+- **技术选型**：opacity 交叉淡入而非 `@property` 色彩插值——opacity 动画全浏览器支持（含旧 WebView，不闪烁回退）且走 GPU 合成；clip-path 与 `::before` 同形（四朝向 clip-path 规则重新扩展到 `::after`），只裁形状不出界；`(0,3,1)` 规则不与 div 的 `animation: none` 冲突（伪元素动画在自身规则上）；动效减弱偏好下关闭动画、`opacity:0` 静止为冷色渐变。div 保持零动画，`bump/blast/hintglow` 照旧接管。
+- 实测（3-1 ▲）：`::after` 与 `::before` clip-path 逐字符一致、热层 `z-index:-1`；拨动画时间 0ms→opacity 0、450ms→0.5、900ms→1（关键帧插值精确）；盒内动画仅 `trihot`、div 动画 `none`。实测（5-1）：非 p3 三角 `::after` content 为 `none`（不生成）、纯色不变；p3 ▼ 呼吸正常。纯 CSS 改动。
+
 ## 发布
 
 GitHub Pages，`main` 分支根目录。测试 → 提交 → 推送 → 线上核对。
