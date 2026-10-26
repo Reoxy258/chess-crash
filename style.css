@@ -2,6 +2,7 @@
  * 点数即色温：1 天蓝（凉）→ 2 琥珀（暖）→ 3 赤红（将爆预警，呼吸脉冲）
  * 演出：贯穿激光刀（横竖整行贯穿 + T 形刀阵，10px 束身双层辉光）、方框震荡波、
  * 命中十字星爆闪、定向爆裂碎片、冲击波环、顿帧、震屏三档、连锁徽章、弹字评价、星级弹入
+ * v1.7.2 三角 p3 预警统一为红色光环心跳（旧版 ::before 亮度脉冲提亮显过饱和，已移除）
  */
 
 :root {
@@ -367,19 +368,19 @@ button {
    数字不参与裁剪，按各朝向排版，加柔和投影。
    v1.5.0 修层叠：::before 是不透明定位层，按绘制顺序会盖住 div 内联文本（数字）——
    加 isolation:isolate 让棋子成为独立层叠上下文，::before 沉到 z-index:-1，
-   数字画在三角形之上。clip-path 会剪掉 box-shadow：三角投影用 drop-shadow，
-   p3 亮度脉冲也走 ::before。
+   数字画在三角形之上。clip-path 会剪掉 box-shadow：三角投影用 drop-shadow。
    v1.5.0 修字号：不要在这里覆盖 font-size——font-size 里的 em 按父级（单元格 16px）
    解析而非 .piece 的 clamp，旧 .8em 实际只有 12.8px（其他棋子 22px）。
    删掉覆盖后直接继承 .piece 的 clamp，与圆/线/方框同字号。
    v1.7.1 数字居中：偏移 7% → 22%——数字从宽边（旧版贴边，重心以下）上移到
-   形体重心附近（约 36% 处），更居中、不再贴边显挤。 */
+   形体重心附近（约 36% 处），更居中、不再贴边显挤。
+   v1.7.2 预警改光环：p3 脉冲从 ::before 亮度呼吸改为 div 上的红色扩散环
+   （见下方 triring），与圆/线/方同款心跳形式。 */
 .piece.k-tri-u, .piece.k-tri-d, .piece.k-tri-l, .piece.k-tri-r {
   isolation: isolate;             /* 独立层叠上下文：让 ::before 可沉到文本之下 */
   background: transparent;          /* 底色交给 ::before（经 --pc 取点数色） */
-  border-radius: 26%;               /* 光标/提示描边走圆角矩形，不再被裁剪 */
-  box-shadow: none;
-  animation: none;                  /* 预警脉冲在 ::before 上，div 让位给 bump/blast */
+  border-radius: 26%;               /* 光标/提示描边/预警光环走圆角矩形，不被裁剪 */
+  box-shadow: none;                 /* 静态无影：形状投影在 ::before（drop-shadow），预警环走动画 */
   line-height: 1;                   /* 收紧行盒：数字墨水更贴近宽边，小棋盘也不越三角斜边 */
   text-shadow: 0 1px 2px rgba(30, 36, 44, .45);
 }
@@ -400,13 +401,19 @@ button {
 .piece.k-tri-d::before { clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .piece.k-tri-l::before { clip-path: polygon(0 50%, 100% 0, 100% 100%); }
 .piece.k-tri-r::before { clip-path: polygon(0 0, 0 100%, 100% 50%); }
-:where(.piece.k-tri-u.p3)::before, :where(.piece.k-tri-d.p3)::before,
-:where(.piece.k-tri-l.p3)::before, :where(.piece.k-tri-r.p3)::before {
-  animation: tripulse 1.8s ease infinite;
+/* v1.7.2 三角 p3 预警改「光环心跳」：与圆/线/方同款形式——在 div 上扩红环
+   （沿 26% 圆角矩形轮廓，与提示/焦点描边同语言），底色恒定不再提亮。
+   旧版走 ::before 的 brightness(1.3) 亮度脉冲：提亮把赤红衬得过饱和，
+   且与其他形状的环跳形式不一致。
+   :where 零优先级且排在 :where(.piece.p3) 之后——三角 p3 用 triring 覆盖 p3pulse；
+   bump/blast/hintglow 等瞬时动画照旧随时接管（优先级更高）。
+   环画在盒外（0→7px 扩散），与盒内被裁剪的三角形互不遮挡。 */
+:where(.piece.k-tri-u.p3, .piece.k-tri-d.p3, .piece.k-tri-l.p3, .piece.k-tri-r.p3) {
+  animation: triring 1.8s ease infinite;
 }
-@keyframes tripulse {
-  0%, 100% { filter: drop-shadow(0 2px 2px rgba(43,52,64,.3)) brightness(1); }
-  55% { filter: drop-shadow(0 2px 2px rgba(43,52,64,.3)) brightness(1.3); }
+@keyframes triring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 84, 45, .45); }
+  55% { box-shadow: 0 0 0 7px rgba(232, 84, 45, 0); }
 }
 
 @keyframes p3pulse {
@@ -822,7 +829,6 @@ button {
 /* ---------------- 动效减弱偏好 ---------------- */
 @media (prefers-reduced-motion: reduce) {
   .piece.p3 { animation: none; }
-  .piece.k-tri-u.p3::before, .piece.k-tri-d.p3::before, .piece.k-tri-l.p3::before, .piece.k-tri-r.p3::before { animation: none; }
   .piece.bump, .piece.blast { animation-duration: .06s; }
   .board-wrap.s1, .board-wrap.s2, .board-wrap.s3 { animation: none; }
   .shockwave { animation: none; opacity: 0; }
