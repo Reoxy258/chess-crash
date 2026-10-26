@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.6 正确落位反馈强化）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.7 提示与答案回放修复）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -63,6 +63,10 @@
  *   交叉淡入——色彩动态变换、方向语义不变；纯 CSS 改动。
  * v1.7.6 正确落位反馈强化：三星路径着法落地 → 落子格金色扩散环 + 上浮金勾 ✓
  *   （goodMoveFx/lastMoveIdx），确认音加 E7 高音与金粉闪；动效减弱下关动画只留音。
+ * v1.7.7 提示与答案回放修复：solveState() 统一按设计语义求解（播种章带播种、其余关
+ *   关闭播种）——深关带播种搜索分钟级爆炸导致 9-4 提示静默失效、回放超时崩溃且
+ *   busy 卡死整盘；giveHint 两级预算 + 无解/超时分别文案；revealAnswer 先绘制文案、
+ *   try/finally 复位 busy、结果三态兜底；checkMoveQuality 同步受益（全章节可用）。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -1009,6 +1013,19 @@
     }
   }
 
+  /* v1.7.7 设计语义求解状态：提示/回放/三星路径判定共用。战役关按「设计最优」求解——
+   * 播种章（六、十一）带播种（par 含播种步），其余战役关关闭播种（par 即无播种最优，
+   * 开放播种只是玩家的额外工具）。第七章起开放播种的搜索空间会爆炸（9×9 深关初始
+   * 求解可达分钟级——提示 450ms / 回放 4s 预算必然超时），按设计语义关闭后：
+   * 无播种章初始 ≤450ms、播种章 ≤2.6s、中局在路径上 ~30ms。挑战/每日是生成关卡
+   * （本身轻，实测 <310ms），按原语义求解。解出的着法对原局面恒合法（不含播种步）。 */
+  function solveState() {
+    if (runCtx && runCtx.mode !== 'campaign') return game;
+    const s = E.clone(game);
+    s.allowPlant = !!level.allowPlant && (level.chapter === 6 || level.chapter === 11);
+    return s;
+  }
+
   /* v1.7.6 正确落位强化反馈：落子格金色扩散环 + 格心上浮金勾 ✓——
    * 与三连确认音同时触发，视觉上立刻可见「这步走在最优路上」。
    * 环动画用 remove→reflow→add 重触发；金勾用 cellCenter 定位（与碎片/冲击波同法）。 */
@@ -1042,7 +1059,9 @@
     setTimeout(() => {
       if (!game || game.over || busy) return;
       let res = null;
-      try { res = S.solve(game, { timeBudget: 280 }); } catch (e) { return; }
+      /* v1.7.7：按设计语义求解——深关不再因播种分支爆炸而 280ms 必超时，
+       * 正确落位反馈（金环金勾）从此在全章节可用。 */
+      try { res = S.solve(solveState(), { timeBudget: 280 }); } catch (e) { return; }
       if (res && !res.timeout && res.depth <= parLeft) { sfx.correct(); goodMoveFx(lastMoveIdx); }
     }, 90);
   }
@@ -1091,13 +1110,31 @@
       return;
     }
     hintStage = 0;
-    const res = S.solve(game, { timeBudget: 450 });
-    if (!res) {
-      msg('这局面提示器一时算不动——试试悔棋或重开。');
-      return;
-    }
-    const idx = res.moves[0];
-    if (idx === undefined) return;
+    /* v1.7.7：按设计语义先快解（450ms）；超时/异常升预算深算一次。
+     * 旧 bug：solve 超时返回 { timeout: true }（真值），旧代码只查 !res，
+     * 走到 res.moves[0] 便是 undefined——静默返回，提示按钮「点了没反应」
+     * （9-4 一类大关必现）。现在超时有文案、无解（null）有文案、都有着落。 */
+    let res = null;
+    try { res = S.solve(solveState(), { timeBudget: 450 }); } catch (e) { res = null; }
+    if (res === null) { msg('这局面已无法清盘——悔棋或重开吧。'); return; }
+    if (res && res.moves && res.moves.length) { showHintMove(res.moves[0]); return; }
+    /* 超时：局面大——先绘制文案，再让出主线程一拍后阻塞深算 */
+    msg('这关局面较大，提示器深算中…');
+    setTimeout(() => {
+      if (busy || !game || game.over) return;
+      let res2 = null;
+      try { res2 = S.solve(solveState(), { timeBudget: 6000 }); } catch (e) { res2 = null; }
+      if (res2 === null) { msg('这局面已无法清盘——悔棋或重开吧。'); return; }
+      if (!res2 || res2.timeout || !res2.moves || !res2.moves.length) {
+        msg('提示器一时算不动这个局面——试试悔棋或重开。');
+        return;
+      }
+      showHintMove(res2.moves[0]);
+    }, 60);
+  }
+
+  function showHintMove(idx) {
+    if (idx === undefined || !cellEl(idx)) return;
     clearHint();
     const cell = cellEl(idx);
     cell.classList.add('hint-glow');
@@ -1302,21 +1339,30 @@
     closeOverlay();
     resetLevel();
     msg('最优解演示…');
-    const res = S.solve(game, { timeBudget: 4000 });
-    if (!res) {
+    await wait(60);                    /* v1.7.7：先让文案绘制，再进入（可能数秒的）求解 */
+    /* v1.7.7 修两处：①按设计语义求解——9-4/16-3 一类大关从「带播种分支爆炸、
+     * 4s 预算恰好超时」降到亚秒级；②旧代码超时后 res.moves 为 undefined，
+     * for...of 抛 TypeError 且 busy 卡死 true——整盘冻结（悔棋失灵，只剩重开），
+     * 现在 try/finally 兜底 + 结果三态（解/超时/无解）都有着落。 */
+    const res = S.solve(solveState(), { timeBudget: 12000 });
+    if (!res || res.timeout || !res.moves || !res.moves.length) {
       msg('提示器暂时算不动，直接再试一次吧');
       return;
     }
     busy = true;
-    for (const mv of res.moves) {
-      const r = E.applyMove(game, mv);
-      game = r.state;
-      maxChain = Math.max(maxChain, r.trace.waves.length);
-      await playTrace(r.trace);
-      syncBoard();
-      await wait(560);
+    try {
+      for (const mv of res.moves) {
+        const r = E.applyMove(game, mv);
+        if (!r.ok) { msg('答案与本局面不符——请反馈这个关卡。'); break; }
+        game = r.state;
+        maxChain = Math.max(maxChain, r.trace.waves.length);
+        await playTrace(r.trace);
+        syncBoard();
+        await wait(560);
+      }
+    } finally {
+      busy = false;                    /* v1.7.7：异常路径也复位，盘面不再冻结 */
     }
-    busy = false;
     showOverlay(
       '<h2 class="win">轮到你了</h2>' +
       '<div class="stats">这是 ' + res.moves.length + ' 步的最优解。<br>布局不变，再来一次。</div>' +
