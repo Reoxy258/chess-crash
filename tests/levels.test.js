@@ -27,7 +27,11 @@ test('棋盘编码合法（尺寸、字符、稳定态）', () => {
 
 test('solver 复算：最优投点数与 par 一致，解回放必胜', () => {
   for (const l of LEVELS) {
-    const g = engine.newGame({ size: l.size, board: l.board, bank: l.bank, allowPlant: l.allowPlant });
+    // v1.7.0 播种开放：par = 设计最优。播种章（六、十一）的 par 含播种步（求解带播种）；
+    // 其余章节按无播种设计——开放播种只是给玩家的额外工具（只增不减可解性），
+    // 偶尔能让熟练玩家比 par 更省点拿到三星，属于预期的宽松。
+    const parPlant = [6, 11].includes(l.chapter);
+    const g = engine.newGame({ size: l.size, board: l.board, bank: l.bank, allowPlant: parPlant });
     const res = solver.solve(g, { timeBudget: 10000 });
     assert.ok(res, l.id + ' 必须可解');
     assert.ok(!res.timeout, l.id + ' 不得超时');
@@ -57,6 +61,13 @@ test('章节规则：第一章原味、手紧与播种各就各位', () => {
     const g = engine.newGame({ size: l.size, board: l.board, bank: l.bank, allowPlant: true });
     const res = solver.solve(g, { timeBudget: 10000 });
     assert.ok(res.moves.some(i => g.cells[i] === 0), l.id + ' 最浅解必含播种步');
+  }
+  // v1.7.0 播种开放：播种在第六章登场后，第七章起全部开放；前五章不开放
+  for (const l of LEVELS.filter(x => x.chapter >= 6)) {
+    assert.ok(l.allowPlant, l.id + ' 第六章起可播种');
+  }
+  for (const l of LEVELS.filter(x => x.chapter <= 5)) {
+    assert.ok(!l.allowPlant, l.id + ' 前五章不可播种');
   }
   // 大盘章（十起 ≥ 8×8；十二/十四/十五/终章 9×9）
   for (const l of LEVELS.filter(x => x.chapter >= 10)) {

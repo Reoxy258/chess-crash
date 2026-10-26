@@ -222,6 +222,29 @@ button {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   100% { transform: translateY(105vh) rotate(560deg); opacity: 0; }
 }
+
+/* ---------------- v1.7.0 三连胜烟花（庆祝弹窗的辐射爆裂粒子） ---------------- */
+.firework {
+  position: fixed;
+  z-index: 25;                 /* 结果覆盖层之上、教程层之下 */
+  pointer-events: none;
+}
+.firework i {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fc, #ff8a3d);
+  box-shadow: 0 0 8px 2px var(--fc, #ff8a3d);
+  animation: fwfly 0.85s cubic-bezier(.12, .72, .28, 1) forwards;
+}
+@keyframes fwfly {
+  0% { transform: translate(0, 0) scale(1.15); opacity: 1; }
+  65% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.1); opacity: 0; }
+}
 .foot {
   text-align: center;
   color: var(--ink-soft);
@@ -697,6 +720,40 @@ button {
   text-align: center;
   animation: boxin .25s ease;
 }
+/* v1.7.0 三连胜里程碑：胜利弹窗升级为金色烟花庆典礼盒 */
+.overlay-box.streak {
+  border: 2px solid #f0a83c;
+  background: linear-gradient(180deg, #fffdf6 0%, #fff5e0 100%);
+  box-shadow: 0 0 0 4px rgba(240, 168, 60, .22), 0 0 46px rgba(240, 168, 60, .5),
+    0 12px 34px rgba(43, 52, 64, .3);
+  animation: streakin .55s cubic-bezier(.18, 1.35, .3, 1);
+}
+@keyframes streakin {
+  0% { transform: scale(.6) rotate(-2deg); opacity: 0; }
+  60% { transform: scale(1.06) rotate(.5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+.streak-crown {
+  font-size: 46px;
+  line-height: 1;
+  animation: crownbob 1.8s ease-in-out infinite;
+}
+@keyframes crownbob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-7px) rotate(4deg); }
+}
+.streak-title {
+  font-size: 30px;
+  margin: 6px 0 2px;
+  color: #ef9f18;
+  letter-spacing: .06em;
+  text-shadow: 0 2px 0 rgba(43, 52, 64, .18), 0 0 18px rgba(245, 179, 26, .55);
+}
+.streak-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+}
 @keyframes boxin {
   from { transform: scale(.9); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
@@ -773,7 +830,10 @@ button {
   .chain-badge { animation: none; }
   .hud-pieces.tick { animation: none; }
   .confetti { animation-duration: .5s; }
+  .firework i { animation-duration: .3s; }
   .overlay-box { animation: none; }
+  .overlay-box.streak { animation: none; }
+  .streak-crown { animation: none; }
   .overlay .stars .on { animation: none; }
 }
 

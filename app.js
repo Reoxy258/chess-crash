@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.6.5 震荡波修形 + 波面裁剪）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.0 正确落位音 + 播种开放 + 三连胜庆祝）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -40,6 +40,14 @@
  *   余波环细一档（1.5px、无辉光、峰值透明度减半），收尾 280ms→170ms 少拖影；
  * - 波面裁剪：环绘制在贴棋盘的 .ripple-clip 容器（overflow hidden）内，
  *   靠边的方框震荡波贴边截断，不再超出棋盘。
+ * v1.7.0 引导与激励三件套：
+ * - 正确落位音：每手落子后轻预算后台求解——局面仍能按最优（三星）路径清盘时，
+ *   播明显的确认音（上行双铃）；求解超时 / 已偏离最优 / 必败则不响，胜利另有礼乐。
+ * - 播种开放：播种自第六章登场后，第七章起关卡全部开放（55/80）——
+ *   播种是给玩家的额外工具；par 仍按设计最优（关卡数据不变），
+ *   播种位虚线提示只画「接波位」（任一存活棋子波及范围内的空格），避免大盘噪点。
+ * - 三连胜庆祝：连胜计数持久化（胜 +1、败清零），每逢 3 的倍数——
+ *   胜利弹窗升级为金色烟花庆典（皇冠 + 金框礼盒 + 视口烟花 + 礼赞音）。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -240,7 +248,21 @@
         tone(notes[cnt - 1] * 2, 0.22, { type: 'sine', gain: 0.07, delay: cnt * 0.075 });
       },
       win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, { type: 'triangle', gain: 0.1, delay: i * 0.11 })); },
-      lose() { [330, 262, 208].forEach((f, i) => tone(f, 0.24, { type: 'sine', gain: 0.1, delay: i * 0.14 })); }
+      lose() { [330, 262, 208].forEach((f, i) => tone(f, 0.24, { type: 'sine', gain: 0.1, delay: i * 0.14 })); },
+      /* v1.7.0 正确落位确认音：上行大六度双击铃 + 高八度泛音——
+       * 与落子/命中/喝彩音色错开，一听就知道「这步走在最优路上」 */
+      correct() {
+        tone(1318, 0.1, { type: 'sine', gain: 0.09 });
+        tone(1976, 0.16, { type: 'sine', gain: 0.08, delay: 0.085 });
+        tone(2637, 0.12, { type: 'triangle', gain: 0.04, delay: 0.17 });
+      },
+      /* v1.7.0 三连胜里程碑礼赞：上行琶音 + 双八度冠音 + 金色 shimmer */
+      streakWin() {
+        [523, 659, 784, 1047, 1568].forEach((f, i) => tone(f, 0.16, { type: 'triangle', gain: 0.1, delay: i * 0.09 }));
+        tone(2093, 0.3, { type: 'sine', gain: 0.06, delay: 0.45 });
+        tone(2637, 0.24, { type: 'sine', gain: 0.04, delay: 0.62 });
+        noise(0.5, { from: 6000, to: 2200, gain: 0.05, delay: 0.45 });
+      }
     };
   })();
   document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
@@ -277,6 +299,34 @@
       c.style.animationDuration = (1.1 + Math.random() * 0.7) + 's';
       document.body.appendChild(c);
       setTimeout(() => c.remove(), 2400);
+    }
+  }
+
+  /* v1.7.0 三连胜烟花：视口随机位置的多轮辐射爆裂（粒子按角度飞散 + 辉光拖尾） */
+  function fireworks() {
+    if (REDUCED_MOTION) return;
+    const colors = ['#ff8a3d', '#f5b31a', '#4fa3d1', '#9b59d0', '#e8542d', '#3aa76d'];
+    for (let b = 0; b < 6; b++) {
+      setTimeout(() => {
+        const host = document.createElement('div');
+        host.className = 'firework';
+        host.style.left = (12 + Math.random() * 76) + 'vw';
+        host.style.top = (10 + Math.random() * 48) + 'vh';
+        const hue = colors[(Math.random() * colors.length) | 0];
+        const n = 10 + ((Math.random() * 4) | 0);
+        for (let p = 0; p < n; p++) {
+          const ang = (Math.PI * 2 * p) / n + Math.random() * 0.4;
+          const far = 56 + Math.random() * 84;
+          const dot = document.createElement('i');
+          dot.style.setProperty('--dx', (Math.cos(ang) * far).toFixed(1) + 'px');
+          dot.style.setProperty('--dy', (Math.sin(ang) * far).toFixed(1) + 'px');
+          dot.style.setProperty('--fc', hue);
+          dot.style.animationDelay = (Math.random() * 0.08).toFixed(2) + 's';
+          host.appendChild(dot);
+        }
+        document.body.appendChild(host);
+        setTimeout(() => host.remove(), 1400);
+      }, b * 230 + Math.random() * 160);
     }
   }
 
@@ -416,9 +466,23 @@
   }
 
   /* ================= 棋盘渲染 ================= */
+  /* v1.7.0 播种位提示：虚线圈只画「接波位」——任一存活棋子波及范围内的空格
+   * （与求解器的播种候选一致），指引有效落点，避免大盘满屏虚线的噪点。
+   * 非接波位仍可正常播种（引擎不限制），只是不给提示。 */
+  function plantSpots() {
+    const covered = new Set();
+    for (let i = 0; i < game.cells.length; i++) {
+      if (game.cells[i] === 0) continue;
+      for (const j of E.shapeTargets(game.size, i, E.kindOf(game.cells[i]))) {
+        if (game.cells[j] === 0) covered.add(j);
+      }
+    }
+    return covered;
+  }
   function buildBoard() {
     boardEl.innerHTML = '';
     boardEl.style.gridTemplateColumns = 'repeat(' + game.size + ', 1fr)';
+    const spots = plantSpots();
     for (let i = 0; i < game.cells.length; i++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
@@ -429,7 +493,7 @@
         p.className = 'piece p' + E.pointsOf(v) + (kc ? ' ' + kc : '');
         p.textContent = String(E.pointsOf(v));
         cell.appendChild(p);
-      } else if (game.allowPlant) {
+      } else if (game.allowPlant && spots.has(i)) {
         cell.classList.add('plantable');
       }
       cell.addEventListener('pointerdown', ev => {
@@ -445,6 +509,7 @@
 
   function syncBoard() {
     let pieces = 0;
+    const spots = plantSpots();
     for (let i = 0; i < game.cells.length; i++) {
       const cell = boardEl.children[i];
       const v = game.cells[i];
@@ -461,7 +526,7 @@
       } else if (p) {
         p.remove();
       }
-      cell.classList.toggle('plantable', v === 0 && game.allowPlant && !game.over);
+      cell.classList.toggle('plantable', v === 0 && game.allowPlant && !game.over && spots.has(i));
     }
     piecesNum.textContent = String(pieces);
     syncHud();
@@ -887,7 +952,7 @@
     if (coachVisible()) return;
     const r = E.applyMove(game, idx);
     if (!r.ok) {
-      if (r.error === 'empty-no-plant') msg('空格放不了棋子——第六章起可「播种」');
+      if (r.error === 'empty-no-plant') msg('空格放不了棋子——本关不可播种');
       else if (r.error === 'no-bank') msg('点数用完了');
       return;
     }
@@ -901,7 +966,10 @@
 
   function onMoveDone() {
     syncBoard();
-    if (!game.over) return;
+    if (!game.over) {
+      checkMoveQuality();   /* v1.7.0 正确落位音效反馈 */
+      return;
+    }
     if (game.win) {
       if (runCtx && runCtx.mode === 'challenge') return showChallengeWin();
       if (runCtx && runCtx.mode === 'daily') return showDailyWin();
@@ -916,6 +984,21 @@
       if (runCtx && runCtx.mode === 'challenge') return showChallengeEnd();
       showLose();
     }
+  }
+
+  /* v1.7.0 正确落位音效反馈：落子后局面仍能按最优（三星）路径清盘（剩余最少投点数
+   * ≤ par - 已投点数）→ 播明显的确认音。求解超时 / 已偏离最优 / 必败都不响。
+   * 延迟 90ms 再算，让棋盘先完成重绘；轻预算后台求解不卡手。 */
+  function checkMoveQuality() {
+    if (!level || game.over) return;
+    const parLeft = level.par - game.placed;
+    if (parLeft < 0) return;           /* 已超最优，后面怎么打都不是三星路径 */
+    setTimeout(() => {
+      if (!game || game.over || busy) return;
+      let res = null;
+      try { res = S.solve(game, { timeBudget: 280 }); } catch (e) { return; }
+      if (res && !res.timeout && res.depth <= parLeft) sfx.correct();
+    }, 90);
   }
 
   function undo() {
@@ -984,8 +1067,9 @@
   }
 
   /* ================= 面板 ================= */
-  function showOverlay(html) {
+  function showOverlay(html, cls) {
     overlayBox.innerHTML = html;
+    overlayBox.className = 'overlay-box' + (cls ? ' ' + cls : '');
     overlay.classList.remove('hidden');
   }
   function closeOverlay() {
@@ -999,16 +1083,45 @@
     return '<div class="stars">' + s + '</div>';
   }
 
+  /* ================= v1.7.0 连胜（跨局持久化：胜 +1、败清零） ================= */
+  function bumpStreak() {
+    progress.streak = (progress.streak || 0) + 1;
+    if (progress.streak > (progress.bestStreak || 0)) progress.bestStreak = progress.streak;
+    saveProgress();
+    return progress.streak;
+  }
+  function resetStreak() {
+    if (progress.streak) {
+      progress.streak = 0;
+      saveProgress();
+    }
+  }
+  const CN_STREAK = { 3: '三', 6: '六', 9: '九', 12: '十二', 15: '十五', 18: '十八', 21: '二十一' };
+  const streakTitle = n => (CN_STREAK[n] || n) + '连胜！';
+  /* 里程碑（每 3 连胜）时胜利弹窗升级为金色烟花庆典：皇冠 + 大标题 + 战绩行 */
+  function streakHead(streak) {
+    return '<div class="streak-crown">👑</div>' +
+      '<h2 class="win streak-title">' + streakTitle(streak) + '</h2>' +
+      '<div class="streak-sub">连续通关 ' + streak + ' 关 · 历史最佳 ' + (progress.bestStreak || streak) + ' 关</div>';
+  }
+
   function showWin() {
     const stars = starFor(level, game.placed);
     const prev = progress.stars[level.id] || 0;
     progress.stars[level.id] = Math.max(prev, stars);
+    const streak = bumpStreak();
+    const milestone = streak % 3 === 0;   /* v1.7.0 每 3 连胜升级为金色烟花庆典 */
     saveProgress();
-    sfx.win();
+    if (milestone) {
+      sfx.streakWin();
+      fireworks();
+    } else {
+      sfx.win();
+    }
     if (stars === 3) confetti();
     const isLast = levelIdx === LEVELS.length - 1;
     showOverlay(
-      '<h2 class="win">清空棋盘！</h2>' +
+      (milestone ? streakHead(streak) : '<h2 class="win">清空棋盘！</h2>') +
       starsPanelHtml(stars) +
       '<div class="stats">投点 ' + game.placed + ' / 最优 ' + level.par +
       ' · 最大连锁 ' + Math.max(maxChain, 1) + ' 波 · 剩余 ' + game.bank + ' 点</div>' +
@@ -1017,7 +1130,8 @@
               : '<button class="ctl primary" id="ov-next">下一关 →</button>') +
       '<button class="ctl" id="ov-retry">再玩一次</button>' +
       (isLast ? '' : '<button class="ctl" id="ov-menu">回菜单</button>') +
-      '</div>'
+      '</div>',
+      milestone ? 'streak' : ''
     );
     const next = $('ov-next');
     if (next) next.addEventListener('click', () => { closeOverlay(); startLevel(levelIdx + 1); });
@@ -1034,17 +1148,25 @@
     if (!best || passed > best.stage) {
       saveJSON(KEY_RUN, { stage: passed, date: CH.dateKey(new Date()) });
     }
-    sfx.win();
+    const streak = bumpStreak();
+    const milestone = streak % 3 === 0;   /* v1.7.0 每 3 连胜升级为金色烟花庆典 */
+    if (milestone) {
+      sfx.streakWin();
+      fireworks();
+    } else {
+      sfx.win();
+    }
     if (stars === 3) confetti();
     showOverlay(
-      '<h2 class="win">第 ' + passed + ' 关通过！</h2>' +
+      (milestone ? streakHead(streak) : '<h2 class="win">第 ' + passed + ' 关通过！</h2>') +
       starsPanelHtml(stars) +
       '<div class="stats">本关投点 ' + game.placed + ' / 最优 ' + level.par +
       ' · 本轮最大连锁 ' + Math.max(runCtx.runMaxChain, 1) + ' 波</div>' +
       '<div class="actions">' +
       '<button class="ctl primary" id="ov-next">下一关 →</button>' +
       '<button class="ctl" id="ov-menu">见好就收，回菜单</button>' +
-      '</div>'
+      '</div>',
+      milestone ? 'streak' : ''
     );
     $('ov-next').addEventListener('click', () => {
       closeOverlay();
@@ -1056,6 +1178,7 @@
 
   function showChallengeEnd() {
     sfx.lose();
+    resetStreak();                       /* v1.7.0 连胜清零 */
     const passed = runCtx.stage;
     const best = loadJSON(KEY_RUN, null);
     // 与本轮开跑前的纪录比较：胜利途中已实时更新 best，直接比会永远持平
@@ -1086,17 +1209,25 @@
       rec.stars = Math.max(rec.stars || 0, stars);
       saveJSON(KEY_DAILY, rec);
     }
-    sfx.win();
+    const streak = bumpStreak();
+    const milestone = streak % 3 === 0;   /* v1.7.0 每 3 连胜升级为金色烟花庆典 */
+    if (milestone) {
+      sfx.streakWin();
+      fireworks();
+    } else {
+      sfx.win();
+    }
     if (stars === 3) confetti();
     showOverlay(
-      '<h2 class="win">今日挑战完成</h2>' +
+      (milestone ? streakHead(streak) : '<h2 class="win">今日挑战完成</h2>') +
       starsPanelHtml(stars) +
       '<div class="stats">投点 ' + game.placed + ' / 最优 ' + level.par +
       ' · 最大连锁 ' + Math.max(maxChain, 1) + ' 波<br>星数取当天最佳，可随时重打。</div>' +
       '<div class="actions">' +
       '<button class="ctl primary" id="ov-retry">再打一次</button>' +
       '<button class="ctl" id="ov-menu">回菜单</button>' +
-      '</div>'
+      '</div>',
+      milestone ? 'streak' : ''
     );
     $('ov-retry').addEventListener('click', () => { closeOverlay(); resetLevel(); });
     $('ov-menu').addEventListener('click', () => { closeOverlay(); goMenu(); });
@@ -1104,6 +1235,7 @@
 
   function showLose() {
     sfx.lose();
+    resetStreak();                       /* v1.7.0 连胜清零 */
     let pieces = 0;
     for (const v of game.cells) if (v > 0) pieces++;
     showOverlay(

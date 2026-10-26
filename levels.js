@@ -364,7 +364,7 @@
   {"id":"7-1",
     "chapter":7,"title":"十字路口",
     "intro":"排成十字的棋子，最怕中心起爆。",
-    "size":7,"bank":4,"par":3,"allowPlant":false,"board": [
+    "size":7,"bank":4,"par":3,"allowPlant":true,"board": [
     "BF.3D..",
     "12.3..3",
     ".3.....",
@@ -376,7 +376,7 @@
   {"id":"7-2",
     "chapter":7,"title":"一字长蛇",
     "intro":"整行整列都是燃料。",
-    "size":8,"bank":5,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":4,"allowPlant":true,"board": [
     "...1.3.F",
     "....231.",
     ".....Q..",
@@ -389,7 +389,7 @@
   {"id":"7-3",
     "chapter":7,"title":"锋线走廊",
     "intro":"让 T 形锋刃顺着走廊走。",
-    "size":8,"bank":5,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":4,"allowPlant":true,"board": [
     "...3.G2.",
     ".B.....2",
     ".D...13.",
@@ -402,7 +402,7 @@
   {"id":"7-4",
     "chapter":7,"title":"火力覆盖",
     "intro":"形状波扫过的地方寸草不生。",
-    "size":8,"bank":5,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":4,"allowPlant":true,"board": [
     "G.......",
     "2.....23",
     "3...C.2.",
@@ -415,7 +415,7 @@
   {"id":"7-5",
     "chapter":7,"title":"完美队形",
     "intro":"章末考核：为冲击波排好阵列。",
-    "size":8,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":6,"par":5,"allowPlant":true,"board": [
     "2.C..1.C",
     "3.....QG",
     "2.......",
@@ -428,7 +428,7 @@
   {"id":"8-1",
     "chapter":8,"title":"风暴之眼",
     "intro":"方框成海：圈内圈外，全要算到。",
-    "size":7,"bank":4,"par":3,"allowPlant":false,"board": [
+    "size":7,"bank":4,"par":3,"allowPlant":true,"board": [
     "..C3...",
     ".....1.",
     "...1.BU",
@@ -440,7 +440,7 @@
   {"id":"8-2",
     "chapter":8,"title":"连环矩阵",
     "intro":"方框挨着方框，一爆传一爆。",
-    "size":7,"bank":5,"par":4,"allowPlant":false,"board": [
+    "size":7,"bank":5,"par":4,"allowPlant":true,"board": [
     "..T.231",
     ".....TB",
     ".2...2U",
@@ -452,7 +452,7 @@
   {"id":"8-3",
     "chapter":8,"title":"直角风暴",
     "intro":"方框与三角，各扫各的圈。",
-    "size":8,"bank":5,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":4,"allowPlant":true,"board": [
     "..12....",
     ".2..H.3.",
     "..3.....",
@@ -465,7 +465,7 @@
   {"id":"8-4",
     "chapter":8,"title":"方寸大乱",
     "intro":"半盘方框的战场。",
-    "size":8,"bank":5,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":5,"allowPlant":true,"board": [
     "...U....",
     "......2.",
     "..S..T..",
@@ -478,7 +478,7 @@
   {"id":"8-5",
     "chapter":8,"title":"八方风雨",
     "intro":"章末考核：方阵为主，万形为辅。",
-    "size":8,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":6,"par":5,"allowPlant":true,"board": [
     ".......F",
     "U3.2B..A",
     "...US.2.",
@@ -491,7 +491,7 @@
   {"id":"9-1",
     "chapter":9,"title":"锱铢必较",
     "intro":"手牌刚好等于最优——全形状下更狠。",
-    "size":7,"bank":3,"par":3,"allowPlant":false,"board": [
+    "size":7,"bank":3,"par":3,"allowPlant":true,"board": [
     "P...K..",
     "3..DR.A",
     "3T..3..",
@@ -503,7 +503,7 @@
   {"id":"9-2",
     "chapter":9,"title":"度日如年",
     "intro":"每个点都是最后的点。",
-    "size":7,"bank":4,"par":4,"allowPlant":false,"board": [
+    "size":7,"bank":4,"par":4,"allowPlant":true,"board": [
     "...A...",
     "3......",
     "...S..2",
@@ -515,7 +515,7 @@
   {"id":"9-3",
     "chapter":9,"title":"极限预算",
     "intro":"四点四步，形状是唯一的杠杆。",
-    "size":8,"bank":4,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":4,"par":4,"allowPlant":true,"board": [
     "S.N.32M1",
     "3J.....1",
     "........",
@@ -528,7 +528,7 @@
   {"id":"9-4",
     "chapter":9,"title":"一子不能错",
     "intro":"顺序与形状都要精确。",
-    "size":8,"bank":5,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":5,"allowPlant":true,"board": [
     "...N.32I",
     ".......E",
     "....P..B",
@@ -541,7 +541,7 @@
   {"id":"9-5",
     "chapter":9,"title":"走钢丝",
     "intro":"章末考核：零容错全清。",
-    "size":8,"bank":5,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":5,"allowPlant":true,"board": [
     "D..B...T",
     "..T.....",
     "........",
@@ -554,7 +554,7 @@
   {"id":"10-1",
     "chapter":10,"title":"大棋盘",
     "intro":"更大的战场，波及全场。",
-    "size":8,"bank":5,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":4,"allowPlant":true,"board": [
     "...L.2.R",
     "...L....",
     ".2..3...",
@@ -567,7 +567,7 @@
   {"id":"10-2",
     "chapter":10,"title":"全面战争",
     "intro":"火力全开。",
-    "size":8,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":6,"par":5,"allowPlant":true,"board": [
     "..G.2R3K",
     ".3...22T",
     ".....1I.",
@@ -580,7 +580,7 @@
   {"id":"10-3",
     "chapter":10,"title":"风暴中心",
     "intro":"让连锁在大盘上滚成雪球。",
-    "size":8,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":6,"par":5,"allowPlant":true,"board": [
     ".U....D.",
     ".J322..2",
     "..M....3",
@@ -593,7 +593,7 @@
   {"id":"10-4",
     "chapter":10,"title":"深水区",
     "intro":"棋子越多，越要算清每一步。",
-    "size":8,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":6,"par":5,"allowPlant":true,"board": [
     "...K...T",
     ".......3",
     "T...2...",
@@ -606,7 +606,7 @@
   {"id":"10-5",
     "chapter":10,"title":"风暴之眼",
     "intro":"章末考核：八路盘的最后一波。",
-    "size":8,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":8,"bank":6,"par":6,"allowPlant":true,"board": [
     "..1F.1T.",
     "2.2.....",
     ".1P.1...",
@@ -684,7 +684,7 @@
   {"id":"12-1",
     "chapter":12,"title":"九路战场",
     "intro":"九路棋盘，万形齐张。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     "T..3...1.",
     "EN.32.21.",
     ".........",
@@ -698,7 +698,7 @@
   {"id":"12-2",
     "chapter":12,"title":"混沌初开",
     "intro":"形状越杂，越要沉住气。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     "Q..2.....",
     ".23....2.",
     ".2.K....T",
@@ -712,7 +712,7 @@
   {"id":"12-3",
     "chapter":12,"title":"乱中有序",
     "intro":"在混乱里找出那一爆的顺序。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     ".Q...K...",
     "...2..2..",
     "....N.J..",
@@ -726,7 +726,7 @@
   {"id":"12-4",
     "chapter":12,"title":"压舱石",
     "intro":"最稳的那颗棋，是全局的支点。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     ".C..3....",
     "..3....M.",
     ".....3B..",
@@ -740,7 +740,7 @@
   {"id":"12-5",
     "chapter":12,"title":"混沌收束",
     "intro":"章末考核：把混乱炸成清空。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     ".1E..Q...",
     "...3...2.",
     "...PB....",
@@ -754,7 +754,7 @@
   {"id":"13-1",
     "chapter":13,"title":"钢索",
     "intro":"手牌与最优完全相等——没有退路。",
-    "size":8,"bank":4,"par":4,"allowPlant":false,"board": [
+    "size":8,"bank":4,"par":4,"allowPlant":true,"board": [
     "...Q....",
     "..B..1..",
     "1...3...",
@@ -767,7 +767,7 @@
   {"id":"13-2",
     "chapter":13,"title":"薄冰",
     "intro":"每一步都踩在冰面上。",
-    "size":8,"bank":5,"par":5,"allowPlant":false,"board": [
+    "size":8,"bank":5,"par":5,"allowPlant":true,"board": [
     ".3......",
     "..23T.31",
     "..13..2.",
@@ -780,7 +780,7 @@
   {"id":"13-3",
     "chapter":13,"title":"刀锋",
     "intro":"九路大盘上的零容错。",
-    "size":9,"bank":5,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":5,"par":5,"allowPlant":true,"board": [
     "..3.3.KB.",
     "U..GS..K.",
     "33.BC....",
@@ -794,7 +794,7 @@
   {"id":"13-4",
     "chapter":13,"title":"悬丝",
     "intro":"一步踏空，满盘皆输。",
-    "size":9,"bank":5,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":5,"par":5,"allowPlant":true,"board": [
     "..J......",
     "1..1.1..2",
     ".........",
@@ -808,7 +808,7 @@
   {"id":"13-5",
     "chapter":13,"title":"如履薄冰",
     "intro":"章末考核：零容错的九路全清。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "......OS.",
     ".IP......",
     "..1..H.2.",
@@ -822,7 +822,7 @@
   {"id":"14-1",
     "chapter":14,"title":"形海",
     "intro":"特殊形状过半的战场。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     "...T...I3",
     ".2.H323..",
     ".....2..2",
@@ -836,7 +836,7 @@
   {"id":"14-2",
     "chapter":14,"title":"形随波转",
     "intro":"形状密度拉满，连锁更野。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     "......2..",
     "...O...2.",
     ".C.EH.2.U",
@@ -850,7 +850,7 @@
   {"id":"14-3",
     "chapter":14,"title":"百花齐放",
     "intro":"每一族形状都是一支箭。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     ".....T.2.",
     "2..3.2...",
     ".H.T.BG.N",
@@ -864,7 +864,7 @@
   {"id":"14-4",
     "chapter":14,"title":"万形洪流",
     "intro":"波及形状的盛宴。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "TI.......",
     "3.....1..",
     "E2E.RB.ES",
@@ -878,7 +878,7 @@
   {"id":"14-5",
     "chapter":14,"title":"形之巅峰",
     "intro":"章末考核：半盘皆形，一炸到底。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "....GK..2",
     "E......3.",
     ".........",
@@ -892,7 +892,7 @@
   {"id":"15-1",
     "chapter":15,"title":"方阵之王",
     "intro":"九路大盘，方框称王。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     "..1......",
     "..2...U.2",
     ".3....2..",
@@ -906,7 +906,7 @@
   {"id":"15-2",
     "chapter":15,"title":"王之领域",
     "intro":"圈内是方框的领土。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     ".1T1.U...",
     ".3.......",
     ".U......1",
@@ -920,7 +920,7 @@
   {"id":"15-3",
     "chapter":15,"title":"领域扩张",
     "intro":"让每个圈都炸到位。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "N2.......",
     "...F.....",
     "1....3.T.",
@@ -934,7 +934,7 @@
   {"id":"15-4",
     "chapter":15,"title":"方圆之间",
     "intro":"方框与全形状共舞。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "....U.13.",
     "...S..TU.",
     ".23.1T..J",
@@ -948,7 +948,7 @@
   {"id":"15-5",
     "chapter":15,"title":"终极方阵",
     "intro":"章末考核：方框的终极考验。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "........T",
     "..OT.3T12",
     "....U....",
@@ -962,7 +962,7 @@
   {"id":"16-1",
     "chapter":16,"title":"归一之门",
     "intro":"八十关的最后一程。",
-    "size":9,"bank":6,"par":5,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":5,"allowPlant":true,"board": [
     "13..3R..E",
     ".NTEK....",
     "...B.....",
@@ -976,7 +976,7 @@
   {"id":"16-2",
     "chapter":16,"title":"万象归一",
     "intro":"所有形状、所有手法，一关看全。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "U.3..22BG",
     "....2..F.",
     ".......T1",
@@ -990,7 +990,7 @@
   {"id":"16-3",
     "chapter":16,"title":"最后的杠杆",
     "intro":"手牌压到最低，形状是唯一的杠杆。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "Q...1.N..",
     "2.E.I2C12",
     "..2..3..3",
@@ -1004,7 +1004,7 @@
   {"id":"16-4",
     "chapter":16,"title":"一炸到底",
     "intro":"排好最后一列引信。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "E.....D..",
     ".BU......",
     "....2....",
@@ -1018,7 +1018,7 @@
   {"id":"16-5",
     "chapter":16,"title":"终局·万象归一",
     "intro":"八十关的最后一爆：万形齐发，一炸到底。",
-    "size":9,"bank":6,"par":6,"allowPlant":false,"board": [
+    "size":9,"bank":6,"par":6,"allowPlant":true,"board": [
     "LQ...2.B.",
     "2....T...",
     "22..ER1LH",
