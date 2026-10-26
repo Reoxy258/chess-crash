@@ -364,14 +364,16 @@ button {
 .piece.k-col { inset: 3% 17%; border-radius: 999px; }
 .piece.k-sq { inset: 5%; border-radius: 18%; }
 /* 三角（v1.3.1 重绘；v1.5.0 修层叠+字号）：形状画在 ::before（clip-path 只裁形状层），
-   数字不参与裁剪，按各朝向的宽边重心排版，加柔和投影。
+   数字不参与裁剪，按各朝向排版，加柔和投影。
    v1.5.0 修层叠：::before 是不透明定位层，按绘制顺序会盖住 div 内联文本（数字）——
    加 isolation:isolate 让棋子成为独立层叠上下文，::before 沉到 z-index:-1，
    数字画在三角形之上。clip-path 会剪掉 box-shadow：三角投影用 drop-shadow，
    p3 亮度脉冲也走 ::before。
    v1.5.0 修字号：不要在这里覆盖 font-size——font-size 里的 em 按父级（单元格 16px）
    解析而非 .piece 的 clamp，旧 .8em 实际只有 12.8px（其他棋子 22px）。
-   删掉覆盖后直接继承 .piece 的 clamp，与圆/线/方框同字号。 */
+   删掉覆盖后直接继承 .piece 的 clamp，与圆/线/方框同字号。
+   v1.7.1 数字居中：偏移 7% → 22%——数字从宽边（旧版贴边，重心以下）上移到
+   形体重心附近（约 36% 处），更居中、不再贴边显挤。 */
 .piece.k-tri-u, .piece.k-tri-d, .piece.k-tri-l, .piece.k-tri-r {
   isolation: isolate;             /* 独立层叠上下文：让 ::before 可沉到文本之下 */
   background: transparent;          /* 底色交给 ::before（经 --pc 取点数色） */
@@ -381,10 +383,10 @@ button {
   line-height: 1;                   /* 收紧行盒：数字墨水更贴近宽边，小棋盘也不越三角斜边 */
   text-shadow: 0 1px 2px rgba(30, 36, 44, .45);
 }
-.piece.k-tri-u { align-items: flex-end; padding-bottom: 7%; }
-.piece.k-tri-d { align-items: flex-start; padding-top: 7%; }
-.piece.k-tri-l { justify-content: flex-end; padding-right: 7%; }
-.piece.k-tri-r { justify-content: flex-start; padding-left: 7%; }
+.piece.k-tri-u { align-items: flex-end; padding-bottom: 22%; }
+.piece.k-tri-d { align-items: flex-start; padding-top: 22%; }
+.piece.k-tri-l { justify-content: flex-end; padding-right: 22%; }
+.piece.k-tri-r { justify-content: flex-start; padding-left: 22%; }
 .piece.k-tri-u::before, .piece.k-tri-d::before, .piece.k-tri-l::before, .piece.k-tri-r::before {
   content: "";
   position: absolute;
