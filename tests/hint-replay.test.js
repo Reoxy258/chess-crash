@@ -1,10 +1,11 @@
-/* v1.7.7 回归：提示 / 答案回放 / 三星路径判定在全部 80 关按「设计语义」求解
+/* 设计解快速路径回归：全部 80 关的候选解、回放与中局检查
  *
  * 背景：第七章起关卡开放播种，运行时带播种的搜索分支爆炸（9×9 深关初始求解
  * 分钟级）——9-4 提示 450ms 必超时且旧代码静默吞掉；答案回放 4s 预算恰好超时，
  * for...of undefined 抛 TypeError、busy 卡死整盘。修复：solveState() 统一按
  * par 的设计语义求解（播种章六/十一带播种，其余战役关关闭播种），实测全部
- * 初始 ≤2.6s、无播种章 ≤450ms、在路径中局 ~30ms。本文件与 app.js 同语义。
+ * 本文件只验证设计解候选路径。v1.7.8 的提示会在该路径无解时补算实际规则，
+ * 不再把受限搜索失败当作真实局面无解；实际界面流程另见 app.test.js。
  */
 const test = require('node:test');
 const assert = require('node:assert');
@@ -14,7 +15,7 @@ const { LEVELS } = require('../levels.js');
 
 const PLANT_CHAPTERS = [6, 11];
 
-/* 与 app.js solveState() 同语义的设计求解状态 */
+/* 设计解候选状态；不可用它的 null 证明实际播种玩法无解。 */
 function designGame(lv) {
   const g = engine.newGame({ size: lv.size, board: lv.board, bank: lv.bank, allowPlant: !!lv.allowPlant });
   const s = engine.clone(g);
@@ -22,7 +23,7 @@ function designGame(lv) {
   return s;
 }
 
-/* 与 app.js giveHint 同节奏：450ms 快解，超时升 6s 深算 */
+/* 设计解候选的两级预算：450ms 快解，超时升 6s 深算。 */
 function hintSolve(lv) {
   let res = solver.solve(designGame(lv), { timeBudget: 450 });
   if (res && res.timeout) res = solver.solve(designGame(lv), { timeBudget: 6000 });

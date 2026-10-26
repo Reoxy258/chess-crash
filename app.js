@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.7 提示与答案回放修复）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.8 异步流程与播种提示修复）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -67,6 +67,8 @@
  *   关闭播种）——深关带播种搜索分钟级爆炸导致 9-4 提示静默失效、回放超时崩溃且
  *   busy 卡死整盘；giveHint 两级预算 + 无解/超时分别文案；revealAnswer 先绘制文案、
  *   try/finally 复位 busy、结果三态兜底；checkMoveQuality 同步受益（全章节可用）。
+ * v1.7.8：换关取消旧异步任务，答案回放全程保护输入；挑战生成成功后再提交阶段，
+ *   失败重试同一阶段；提示保留快路径并按实际播种规则补算，不再误报无解。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -118,6 +120,7 @@
   let game = null;
   let history = [];
   let busy = false;
+  let sessionVersion = 0;  // 旧局面的异步回调不得影响新局面
   let maxChain = 0;
   let focusIdx = -1;
   let lastMoveIdx = -1;   /* v1.7.6：最近一次实际落子的格号——正确落位反馈作用在这格 */
@@ -303,6 +306,28 @@
 
   /* ================= 工具 ================= */
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  const currentSession = version => version === sessionVersion;
+  function later(fn, ms, version = sessionVersion) {
+    return setTimeout(() => { if (currentSession(version)) fn(); }, ms);
+  }
+
+  function invalidateSession() {
+    sessionVersion++;
+    busy = false;
+    coachOnClose = null;
+    coachEl.classList.add('hidden');
+    closeOverlay();
+    clearHint();
+    chainBadge.classList.add('hidden');
+    boardWrap.classList.remove('s1', 's2', 's3');
+    for (const el of Array.from(boardWrap.children)) {
+      if (el !== boardEl && el !== chainBadge) el.remove();
+    }
+    for (const cls of ['.confetti', '.firework']) {
+      for (const el of document.body.querySelectorAll(cls)) el.remove();
+    }
+    return sessionVersion;
+  }
   function msg(text) {
     msgEl.textContent = text;
     msgEl.classList.remove('flash');
@@ -310,7 +335,7 @@
     msgEl.classList.add('flash');
   }
   function cellEl(i) { return boardEl.children[i]; }
-  function pieceEl(i) { return boardEl.children[i].querySelector('.piece'); }
+  function pieceEl(i) { return boardEl.children[i] ? boardEl.children[i].querySelector('.piece') : null; }
   function speedUp() { if (busy) animSpeed = Math.min(animSpeed, 0.35); }
   function confetti() {
     const colors = ['#ff8a3d', '#f0a83c', '#4fa3d1', '#3aa76d', '#e8542d'];
@@ -322,7 +347,7 @@
       c.style.animationDelay = (Math.random() * 0.35) + 's';
       c.style.animationDuration = (1.1 + Math.random() * 0.7) + 's';
       document.body.appendChild(c);
-      setTimeout(() => c.remove(), 2400);
+      later(() => c.remove(), 2400);
     }
   }
 
@@ -331,7 +356,7 @@
     if (REDUCED_MOTION) return;
     const colors = ['#ff8a3d', '#f5b31a', '#4fa3d1', '#9b59d0', '#e8542d', '#3aa76d'];
     for (let b = 0; b < 6; b++) {
-      setTimeout(() => {
+      later(() => {
         const host = document.createElement('div');
         host.className = 'firework';
         host.style.left = (12 + Math.random() * 76) + 'vw';
@@ -349,7 +374,7 @@
           host.appendChild(dot);
         }
         document.body.appendChild(host);
-        setTimeout(() => host.remove(), 1400);
+        later(() => host.remove(), 1400);
       }, b * 230 + Math.random() * 160);
     }
   }
@@ -436,6 +461,42 @@
   }
 
   /* ================= 挑战模式 ================= */
+  function prepareGeneration(title) {
+    const version = invalidateSession();
+    level = null;
+    game = null;
+    history = [];
+    maxChain = 0;
+    focusIdx = -1;
+    boardEl.innerHTML = '';
+    bankNum.textContent = '0';
+    piecesNum.textContent = '0';
+    $('level-name').textContent = title;
+    $('level-goal').textContent = '';
+    showScreen('game');
+    busy = true;
+    return version;
+  }
+
+  function generateChallengeStage(stage) {
+    const ctx = runCtx;
+    ctx.pendingStage = stage;
+    const version = prepareGeneration('无限挑战 · 第 ' + (stage + 1) + ' 关');
+    msg('正在生成第 ' + (stage + 1) + ' 关…');
+    later(() => {
+      if (!currentSession(version) || runCtx !== ctx) return;
+      let lv = null;
+      try { lv = CH.makeChallenge(stage, ctx.seed); } catch (e) { /* 保留重试入口 */ }
+      if (!currentSession(version) || runCtx !== ctx) return;
+      busy = false;
+      if (!lv) { msg('生成失败，点「重开」再试'); return; }
+      // 只有新棋盘准备成功，才提交挑战进度；失败重试始终指向同一关。
+      ctx.stage = stage;
+      delete ctx.pendingStage;
+      loadLevel(lv);
+    }, 40, version);
+  }
+
   function startChallenge() {
     const prevBest = loadJSON(KEY_RUN, null);
     runCtx = {
@@ -446,36 +507,27 @@
       runMaxChain: 0,
       startBest: (prevBest && prevBest.stage) || 0
     };
-    showScreen('game');
-    msg('正在生成第 1 关…');
-    setTimeout(() => {
-      const lv = CH.makeChallenge(0, runCtx.seed);
-      if (!lv) { msg('生成失败，点「重开」再试'); return; }
-      loadLevel(lv);
-    }, 40);
+    generateChallengeStage(0);
   }
 
-  function nextChallengeStage() {
-    const stage = runCtx.stage;
-    msg('正在生成第 ' + (stage + 1) + ' 关…');
-    busy = true;
-    setTimeout(() => {
-      const lv = CH.makeChallenge(stage, runCtx.seed);
-      busy = false;
-      if (!lv) { msg('生成失败，点「重开」再试'); return; }
-      loadLevel(lv);
-    }, 40);
+  function nextChallengeStage(stage = runCtx.stage + 1) {
+    generateChallengeStage(stage);
   }
 
   function startDaily() {
-    showScreen('game');
+    const ctx = runCtx = { mode: 'daily', pending: true };
+    const version = prepareGeneration('每日挑战');
     msg('正在准备今日关卡…');
-    setTimeout(() => {
-      const rec = getDailyRecord();
-      if (!rec) { msg('今日关卡生成失败，稍后再试'); return; }
-      runCtx = { mode: 'daily' };
+    later(() => {
+      if (!currentSession(version) || runCtx !== ctx) return;
+      let rec = null;
+      try { rec = getDailyRecord(); } catch (e) { /* 保留重试入口 */ }
+      if (!currentSession(version) || runCtx !== ctx) return;
+      busy = false;
+      if (!rec) { msg('今日关卡生成失败，点「重开」再试'); return; }
+      delete ctx.pending;
       loadLevel(rec.level);
-    }, 40);
+    }, 40, version);
   }
 
   function getDailyRecord() {
@@ -491,7 +543,7 @@
 
   /* ================= 棋盘渲染 ================= */
   /* v1.7.0 播种位提示：虚线圈只画「接波位」——任一存活棋子波及范围内的空格
-   * （与求解器的播种候选一致），指引有效落点，避免大盘满屏虚线的噪点。
+   * （作为求解器优先搜索的播种位），指引有效落点，避免大盘满屏虚线的噪点。
    * 非接波位仍可正常播种（引擎不限制），只是不给提示。 */
   function plantSpots() {
     const covered = new Set();
@@ -622,7 +674,7 @@
     ring.style.width = ring.style.height = (rects[i].width * 0.9) + 'px';
     ring.style.borderColor = FAM_COLOR[kind] || FAM_COLOR[0];
     boardWrap.appendChild(ring);
-    setTimeout(() => ring.remove(), 500);
+    later(() => ring.remove(), 500);
   }
 
   /* v1.6.0 顿帧闪光：重波落地时棋盘中央白光一闪 */
@@ -630,7 +682,7 @@
     const f = document.createElement('div');
     f.className = 'board-flash';
     boardWrap.appendChild(f);
-    setTimeout(() => f.remove(), 260);
+    later(() => f.remove(), 260);
   }
 
   /* v1.6.0 弹字评价：按表现弹出大字喝彩（正反馈核心），
@@ -643,7 +695,7 @@
     el.textContent = text;
     boardWrap.appendChild(el);
     sfx.praise(tier);
-    setTimeout(() => { if (el.parentNode) el.remove(); }, 950);
+    later(() => { if (el.parentNode) el.remove(); }, 950);
   }
 
   /* v1.6.0 剩余棋子倒计时脉冲：每波消除后数字弹一下、闪主题色 */
@@ -659,7 +711,7 @@
     const p = pieceEl(i);
     if (p) {
       p.classList.add('blast');
-      setTimeout(() => p.remove(), 240);
+      later(() => p.remove(), 240);
     }
     shockwave(i, kind, rects, wrapRect);
     const c = cellCenter(i, rects, wrapRect);
@@ -677,7 +729,7 @@
       void shard.offsetWidth;
       shard.style.transform = 'translate(' + Math.cos(ang) * dist + 'px,' + Math.sin(ang) * dist + 'px) rotate(' + (Math.random() * 220 - 110) + 'deg)';
       shard.style.opacity = '0';
-      setTimeout(() => shard.remove(), 420);
+      later(() => shard.remove(), 420);
     }
   }
 
@@ -688,7 +740,7 @@
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     boardWrap.appendChild(el);
-    setTimeout(() => el.remove(), 320);
+    later(() => el.remove(), 320);
   }
 
   /* v1.6.3 贯穿激光刀：同一爆源的所有目标共享一组「刀」——按形状一次开出贯穿光路：
@@ -744,11 +796,11 @@
             { transform: rot + ' scaleX(1) scaleY(.2)', opacity: 0 }                                   /* 收细消散 */
           ], { duration: total, fill: 'forwards' });
         } catch (e) { /* WAAPI 不可用则不显示 */ }
-        setTimeout(() => beam.remove(), total + 40);
+        later(() => beam.remove(), total + 40);
       }
       /* 刀尖扫过即命中：impact 按格距线性排布（与扫射动画同速推进） */
       for (const b of boosts) {
-        setTimeout(() => {
+        later(() => {
           const c2 = cellCenter(b.to, rects, wrapRect);
           impactFlash(c2.x, c2.y, b.k);
           const p = pieceEl(b.to);
@@ -789,7 +841,7 @@
       clip.style.width = bRect.width + 'px';
       clip.style.height = bRect.height + 'px';
       boardWrap.appendChild(clip);
-      setTimeout(() => clip.remove(), fire + 480);
+      later(() => clip.remove(), fire + 480);
       for (let r = 0; r < 2; r++) {
         const ring = document.createElement('div');
         ring.className = 'ripple' + (r ? ' echo' : '');
@@ -809,10 +861,10 @@
             { transform: 'translate(-50%,-50%) scale(1)', opacity: 0 }
           ], { duration: dur, delay, fill: 'forwards' });
         } catch (e) { /* WAAPI 不可用则保持隐藏 */ }
-        setTimeout(() => ring.remove(), dur + delay + 60);
+        later(() => ring.remove(), dur + delay + 60);
       }
       /* 环沿扫过邻域：全部同时命中（方环外沿同时到达边与角） */
-      setTimeout(() => {
+      later(() => {
         for (const b of boosts) {
           const c = cellCenter(b.to, rects, wrapRect);
           impactFlash(c.x, c.y, b.k);
@@ -827,8 +879,8 @@
     });
   }
 
-  async function playTrace(trace) {
-    busy = true;
+  async function playTrace(trace, version) {
+    if (!currentSession(version)) return false;
     animSpeed = 1;
     clearHint();
 
@@ -858,6 +910,7 @@
     }
     syncHud();
     await wait(150 * animSpeed);
+    if (!currentSession(version)) return false;
 
     const rects = Array.from(boardEl.children).map(c => c.getBoundingClientRect());
     const wrapRect = boardWrap.getBoundingClientRect();
@@ -891,7 +944,7 @@
         boardWrap.classList.remove('s1', 's2', 's3');
         void boardWrap.offsetWidth;
         boardWrap.classList.add(shakeCls);
-        setTimeout(() => boardWrap.classList.remove(shakeCls), 340);
+        later(() => boardWrap.classList.remove(shakeCls), 340);
         chainShown = true;
       }
       sfx.wave(waveN);
@@ -915,7 +968,9 @@
           : flyLaser(sp.index, sp.kind, list, rects, wrapRect));
       }
       await Promise.all(flights);
+      if (!currentSession(version)) return false;
       await wait(130 * animSpeed);
+      if (!currentSession(version)) return false;
 
       /* v1.6.0 弹字评价：波落地即喝彩（连锁逐级升格顶替） */
       if (waveN >= 5) praise('史诗连锁！', 3);
@@ -927,17 +982,19 @@
       if ((n >= 3 || waveN >= 3) && w + 1 < trace.waves.length) {
         boardFlash();
         await wait(70 * animSpeed);
+        if (!currentSession(version)) return false;
       }
     }
 
     if (chainShown) {
       await wait(120 * animSpeed);
+      if (!currentSession(version)) return false;
       chainBadge.classList.add('hidden');
     }
     /* v1.6.0 收官喝彩：一次点击累计消除 ≥6 → 神之一手 */
     if (trace.splits >= 6) praise('神之一手！', 4);
     if (trace.splits >= 3) sfx.streak(trace.splits);
-    busy = false;
+    return true;
   }
 
   /* ================= 游戏流程 ================= */
@@ -948,9 +1005,10 @@
     '2-2': '新形状 ▮ 竖线棋子：爆开时冲击波只灌同一纵列，横行不动。横竖差别要看清。',
     '3-1': '新形状 ▲ 三角棋子：爆开扫整行，再向角指的方向伸出半列——T 字形波。角朝哪，波就伸向哪。',
     '4-1': '新形状 ■ 方框棋子：爆开只轰自己周围一圈（8 个邻格）。范围小，位置却最讲究。',
-    '6-1': '新能力「播种」：点空格放下一颗 1 点棋子。种子接住两道冲击波就会爆——先布局，再引爆。'
+    '6-1': '新能力「播种」：点空格放下一颗 1 点棋子。种子接住三道冲击波就会爆——先布局，再引爆。'
   };
   function loadLevel(lv) {
+    invalidateSession();
     level = lv;
     levelIdx = runCtx && runCtx.mode === 'campaign' ? LEVELS.indexOf(lv) : -1;
     game = E.newGame({ size: lv.size, board: lv.board, bank: lv.bank, allowPlant: lv.allowPlant });
@@ -959,7 +1017,7 @@
     coach2Shown = false;
     hintStage = 0;
     $('level-name').textContent = lv.id + ' ' + lv.title;
-    $('level-goal').textContent = '目标：清空棋盘 · 最优 ' + lv.par + ' 点' + (lv.allowPlant ? ' · 可播种' : '');
+    $('level-goal').textContent = '目标：清空棋盘 · 三星目标 ' + lv.par + ' 点' + (lv.allowPlant ? ' · 可播种' : '');
     buildBoard();
     syncBoard();
     showScreen('game');
@@ -988,7 +1046,25 @@
     maxChain = Math.max(maxChain, r.trace.waves.length);
     if (r.trace.waves.length === 0) hintStage = 0;
     msg('');
-    playTrace(r.trace).then(onMoveDone);
+    const version = sessionVersion;
+    busy = true;
+    return (async () => {
+      try {
+        if (await playTrace(r.trace, version) && currentSession(version)) {
+          busy = false;
+          onMoveDone();
+        }
+      } catch (e) {
+        if (currentSession(version)) {
+          syncBoard();
+          if (game.over) onMoveDone();
+          else msg('动画已恢复，可以继续投点。');
+        }
+      } finally {
+        // 旧局面的 finally 不得释放新局面持有的操作锁。
+        if (currentSession(version)) busy = false;
+      }
+    })();
   }
 
   function onMoveDone() {
@@ -1013,17 +1089,31 @@
     }
   }
 
-  /* v1.7.7 设计语义求解状态：提示/回放/三星路径判定共用。战役关按「设计最优」求解——
-   * 播种章（六、十一）带播种（par 含播种步），其余战役关关闭播种（par 即无播种最优，
-   * 开放播种只是玩家的额外工具）。第七章起开放播种的搜索空间会爆炸（9×9 深关初始
-   * 求解可达分钟级——提示 450ms / 回放 4s 预算必然超时），按设计语义关闭后：
-   * 无播种章初始 ≤450ms、播种章 ≤2.6s、中局在路径上 ~30ms。挑战/每日是生成关卡
-   * （本身轻，实测 <310ms），按原语义求解。解出的着法对原局面恒合法（不含播种步）。 */
+  /* 先尝试无播种设计路线以缩小深关搜索；失败时必须按真实规则继续。
+   * 受限搜索的 null 不是实际局面的无解证明，异常也只能视作未知。 */
   function solveState() {
-    if (runCtx && runCtx.mode !== 'campaign') return game;
-    const s = E.clone(game);
-    s.allowPlant = !!level.allowPlant && (level.chapter === 6 || level.chapter === 11);
-    return s;
+    return E.clone(game);
+  }
+
+  function solveForUi(timeBudget) {
+    const state = solveState();
+    const start = Date.now();
+    const restricted = state.allowPlant && runCtx && runCtx.mode === 'campaign'
+      && level.chapter !== 6 && level.chapter !== 11;
+    try {
+      if (restricted) {
+        const fast = E.clone(state);
+        fast.allowPlant = false;
+        const candidate = S.solve(fast, { timeBudget: Math.min(450, timeBudget) });
+        if (candidate && candidate.moves && candidate.moves.length) return candidate;
+        const remaining = timeBudget - (Date.now() - start);
+        if (remaining <= 0) return { timeout: true };
+        return S.solve(state, { timeBudget: remaining });
+      }
+      return S.solve(state, { timeBudget });
+    } catch (e) {
+      return { timeout: true };
+    }
   }
 
   /* v1.7.6 正确落位强化反馈：落子格金色扩散环 + 格心上浮金勾 ✓——
@@ -1035,7 +1125,7 @@
     cell.classList.remove('good-move');
     void cell.offsetWidth;
     cell.classList.add('good-move');
-    setTimeout(() => cell.classList.remove('good-move'), 620);
+    later(() => cell.classList.remove('good-move'), 620);
     const rects = Array.from(boardEl.children).map(c => c.getBoundingClientRect());
     const wrapRect = boardWrap.getBoundingClientRect();
     const c = cellCenter(i, rects, wrapRect);
@@ -1045,7 +1135,7 @@
     el.style.left = c.x + 'px';
     el.style.top = c.y + 'px';
     boardWrap.appendChild(el);
-    setTimeout(() => { if (el.parentNode) el.remove(); }, 760);
+    later(() => { if (el.parentNode) el.remove(); }, 760);
   }
 
   /* v1.7.0 正确落位音效反馈：落子后局面仍能按最优（三星）路径清盘（剩余最少投点数
@@ -1053,22 +1143,24 @@
    * 延迟 90ms 再算，让棋盘先完成重绘；轻预算后台求解不卡手。
    * v1.7.6 反馈强化：命中最优路径时除确认音外加金环+金勾视觉（goodMoveFx）。 */
   function checkMoveQuality() {
-    if (!level || game.over) return;
-    const parLeft = level.par - game.placed;
-    if (parLeft < 0) return;           /* 已超最优，后面怎么打都不是三星路径 */
-    setTimeout(() => {
-      if (!game || game.over || busy) return;
-      let res = null;
-      /* v1.7.7：按设计语义求解——深关不再因播种分支爆炸而 280ms 必超时，
-       * 正确落位反馈（金环金勾）从此在全章节可用。 */
-      try { res = S.solve(solveState(), { timeBudget: 280 }); } catch (e) { return; }
-      if (res && !res.timeout && res.depth <= parLeft) { sfx.correct(); goodMoveFx(lastMoveIdx); }
+    if (!level || !game || game.over) return;
+    const state = game;
+    const index = lastMoveIdx;
+    const parLeft = level.par - state.placed;
+    if (parLeft < 0) return;
+    later(() => {
+      if (game !== state || game.over || busy) return;
+      const res = solveForUi(280);
+      // 发现预算内可清盘的合法路线即可确认三星，不需要声称全局最优。
+      if (res && !res.timeout && res.depth <= parLeft) { sfx.correct(); goodMoveFx(index); }
     }, 90);
   }
 
   function undo() {
     if (busy || history.length === 0) return;
+    invalidateSession();
     game = history.pop();
+    lastMoveIdx = game.last;
     syncBoard();
     clearHint();
     msg('已悔一步');
@@ -1076,6 +1168,17 @@
   }
 
   function resetLevel() {
+    if (busy) return;
+    if (runCtx && runCtx.mode === 'challenge') {
+      if (Number.isInteger(runCtx.pendingStage)) {
+        generateChallengeStage(runCtx.pendingStage);
+        return;
+      }
+      if (game && game.over && !game.win) { startChallenge(); return; }
+    }
+    if (runCtx && runCtx.mode === 'daily' && runCtx.pending) { startDaily(); return; }
+    if (!level) return;
+    invalidateSession();
     game = E.newGame({ size: level.size, board: level.board, bank: level.bank, allowPlant: level.allowPlant });
     history = [];
     maxChain = 0;
@@ -1110,20 +1213,14 @@
       return;
     }
     hintStage = 0;
-    /* v1.7.7：按设计语义先快解（450ms）；超时/异常升预算深算一次。
-     * 旧 bug：solve 超时返回 { timeout: true }（真值），旧代码只查 !res，
-     * 走到 res.moves[0] 便是 undefined——静默返回，提示按钮「点了没反应」
-     * （9-4 一类大关必现）。现在超时有文案、无解（null）有文案、都有着落。 */
-    let res = null;
-    try { res = S.solve(solveState(), { timeBudget: 450 }); } catch (e) { res = null; }
+    const state = game;
+    const res = solveForUi(450);
     if (res === null) { msg('这局面已无法清盘——悔棋或重开吧。'); return; }
     if (res && res.moves && res.moves.length) { showHintMove(res.moves[0]); return; }
-    /* 超时：局面大——先绘制文案，再让出主线程一拍后阻塞深算 */
     msg('这关局面较大，提示器深算中…');
-    setTimeout(() => {
-      if (busy || !game || game.over) return;
-      let res2 = null;
-      try { res2 = S.solve(solveState(), { timeBudget: 6000 }); } catch (e) { res2 = null; }
+    later(() => {
+      if (busy || game !== state || game.over) return;
+      const res2 = solveForUi(6000);
       if (res2 === null) { msg('这局面已无法清盘——悔棋或重开吧。'); return; }
       if (!res2 || res2.timeout || !res2.moves || !res2.moves.length) {
         msg('提示器一时算不动这个局面——试试悔棋或重开。');
@@ -1140,7 +1237,7 @@
     cell.classList.add('hint-glow');
     const planted = game.cells[idx] === 0;
     msg(planted ? '提示：在这里播种一颗新棋子，接住冲击波。' : '提示：把点投给这颗棋子。');
-    setTimeout(() => {
+    later(() => {
       cell.classList.remove('hint-glow');
     }, 4000);
   }
@@ -1206,7 +1303,7 @@
     showOverlay(
       (milestone ? streakHead(streak) : '<h2 class="win">清空棋盘！</h2>') +
       starsPanelHtml(stars) +
-      '<div class="stats">投点 ' + game.placed + ' / 最优 ' + level.par +
+      '<div class="stats">投点 ' + game.placed + ' / 三星目标 ' + level.par +
       ' · 最大连锁 ' + Math.max(maxChain, 1) + ' 波 · 剩余 ' + game.bank + ' 点</div>' +
       '<div class="actions">' +
       (isLast ? '<button class="ctl primary" id="ov-menu">通关！回菜单</button>'
@@ -1243,7 +1340,7 @@
     showOverlay(
       (milestone ? streakHead(streak) : '<h2 class="win">第 ' + passed + ' 关通过！</h2>') +
       starsPanelHtml(stars) +
-      '<div class="stats">本关投点 ' + game.placed + ' / 最优 ' + level.par +
+      '<div class="stats">本关投点 ' + game.placed + ' / 三星目标 ' + level.par +
       ' · 本轮最大连锁 ' + Math.max(runCtx.runMaxChain, 1) + ' 波</div>' +
       '<div class="actions">' +
       '<button class="ctl primary" id="ov-next">下一关 →</button>' +
@@ -1253,8 +1350,7 @@
     );
     $('ov-next').addEventListener('click', () => {
       closeOverlay();
-      runCtx.stage = passed;
-      nextChallengeStage();
+      nextChallengeStage(passed);
     });
     $('ov-menu').addEventListener('click', () => { closeOverlay(); goMenu(); });
   }
@@ -1304,7 +1400,7 @@
     showOverlay(
       (milestone ? streakHead(streak) : '<h2 class="win">今日挑战完成</h2>') +
       starsPanelHtml(stars) +
-      '<div class="stats">投点 ' + game.placed + ' / 最优 ' + level.par +
+      '<div class="stats">投点 ' + game.placed + ' / 三星目标 ' + level.par +
       ' · 最大连锁 ' + Math.max(maxChain, 1) + ' 波<br>星数取当天最佳，可随时重打。</div>' +
       '<div class="actions">' +
       '<button class="ctl primary" id="ov-retry">再打一次</button>' +
@@ -1323,7 +1419,7 @@
     for (const v of game.cells) if (v > 0) pieces++;
     showOverlay(
       '<h2 class="lose">点数用完了</h2>' +
-      '<div class="stats">棋盘上还剩 ' + pieces + ' 颗棋子。<br>同一关卡布局固定——看看最优解，背板再战。</div>' +
+      '<div class="stats">棋盘上还剩 ' + pieces + ' 颗棋子。<br>同一关卡布局固定——看看通关解，背板再战。</div>' +
       '<div class="actions">' +
       '<button class="ctl primary" id="ov-reveal">看答案</button>' +
       '<button class="ctl" id="ov-retry">重试</button>' +
@@ -1336,36 +1432,46 @@
   }
 
   async function revealAnswer() {
+    if (busy || !level) return;
     closeOverlay();
     resetLevel();
-    msg('最优解演示…');
-    await wait(60);                    /* v1.7.7：先让文案绘制，再进入（可能数秒的）求解 */
-    /* v1.7.7 修两处：①按设计语义求解——9-4/16-3 一类大关从「带播种分支爆炸、
-     * 4s 预算恰好超时」降到亚秒级；②旧代码超时后 res.moves 为 undefined，
-     * for...of 抛 TypeError 且 busy 卡死 true——整盘冻结（悔棋失灵，只剩重开），
-     * 现在 try/finally 兜底 + 结果三态（解/超时/无解）都有着落。 */
-    const res = S.solve(solveState(), { timeBudget: 12000 });
-    if (!res || res.timeout || !res.moves || !res.moves.length) {
-      msg('提示器暂时算不动，直接再试一次吧');
-      return;
-    }
-    busy = true;
+    const version = sessionVersion;
+    busy = true; // 包括开始前让出绘制与每两步之间的等待，整段演示持锁。
+    msg('通关解演示…');
+    let res;
     try {
+      await wait(60);
+      if (!currentSession(version)) return;
+      res = solveForUi(12000);
+      if (!res || res.timeout || !res.moves || !res.moves.length) {
+        msg('提示器暂时算不动，直接再试一次吧');
+        return;
+      }
       for (const mv of res.moves) {
+        if (!currentSession(version)) return;
         const r = E.applyMove(game, mv);
-        if (!r.ok) { msg('答案与本局面不符——请反馈这个关卡。'); break; }
+        if (!r.ok) { msg('答案与本局面不符——请重开再试。'); return; }
         game = r.state;
         maxChain = Math.max(maxChain, r.trace.waves.length);
-        await playTrace(r.trace);
+        if (!await playTrace(r.trace, version) || !currentSession(version)) return;
         syncBoard();
         await wait(560);
+        if (!currentSession(version)) return;
       }
+      if (!game.win) { msg('答案尚未清盘，请重开再试。'); return; }
+    } catch (e) {
+      if (currentSession(version)) {
+        syncBoard();
+        msg('答案演示已停止，可以重开再试。');
+      }
+      return;
     } finally {
-      busy = false;                    /* v1.7.7：异常路径也复位，盘面不再冻结 */
+      if (currentSession(version)) busy = false;
     }
+    if (!currentSession(version)) return;
     showOverlay(
       '<h2 class="win">轮到你了</h2>' +
-      '<div class="stats">这是 ' + res.moves.length + ' 步的最优解。<br>布局不变，再来一次。</div>' +
+      '<div class="stats">这是 ' + res.moves.length + ' 步的通关解。<br>布局不变，再来一次。</div>' +
       '<div class="actions">' +
       '<button class="ctl primary" id="ov-retry">再试一次</button>' +
       '<button class="ctl" id="ov-menu">回菜单</button>' +
@@ -1383,7 +1489,7 @@
       '2. 棋子到 <b>4 点</b>即爆：本身消失，按形状波及全场——普通<b>十字</b>（同行同列）、<b>横线</b>整行、<b>竖线</b>整列、<b>三角</b> T 形、<b>方框</b>一圈，被波及的棋子全部 +1。<br>' +
       '3. 被 +1 到 4 的棋子连锁爆炸，一波接一波；一次连消多颗还有喝彩音。<br>' +
       '4. <b>清空棋盘</b>即胜；手牌用尽仍未清空则失败。<br>' +
-      '5. 战役 80 关：星级按投点数算，<b>≤最优 3 星</b>；第三章起特殊形状登场，第七章解锁「播种」。<br>' +
+      '5. 战役 80 关：星级按投点数算，<b>≤目标 3 星</b>；第二章起特殊形状登场，第六章解锁「播种」。<br>' +
       '6. 无限挑战：一关接一关越打越紧，失败即结算，冲击最深纪录。<br>' +
       '7. 每日挑战：日期定关卡，全站同款，星数取当天最佳。<br>' +
       '8. 提示免费、悔棋随便用；连锁动画中点棋盘可<b>加速</b>；右上角可<b>静音</b>。<br>' +
@@ -1413,6 +1519,7 @@
     gameScreen.classList.toggle('hidden', name !== 'game');
   }
   function goMenu() {
+    invalidateSession();
     showScreen('menu');
     renderMenu();
   }
@@ -1420,14 +1527,7 @@
   $('help-button').addEventListener('click', showHelp);
   $('btn-menu').addEventListener('click', goMenu);
   $('btn-undo').addEventListener('click', undo);
-  $('btn-restart').addEventListener('click', () => {
-    if (busy) return;
-    if (runCtx && runCtx.mode === 'challenge' && game && game.over && !game.win) {
-      startChallenge();
-      return;
-    }
-    resetLevel();
-  });
+  $('btn-restart').addEventListener('click', resetLevel);
   $('btn-hint').addEventListener('click', giveHint);
 
   const resetBtn = $('reset-progress');
@@ -1462,7 +1562,12 @@
       if (e.key === 'Escape') closeOverlay();
       return;
     }
-    const size = game ? game.size : 6;
+    if (!game) {
+      if (e.key === 'Escape') goMenu();
+      else if (e.key === 'r' || e.key === 'R') resetLevel();
+      return;
+    }
+    const size = game.size;
     let handled = true;
     switch (e.key) {
       case 'ArrowUp': onFocus(focusIdx < 0 ? 0 : (focusIdx - size + game.cells.length) % game.cells.length, true); break;

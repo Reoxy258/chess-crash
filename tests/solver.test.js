@@ -79,3 +79,101 @@ test('lowerBound 与 crossCount 单调合理', () => {
   assert.ok(solver.lowerBound(g) >= 1);
   assert.ok(solver.crossCount(g.cells, 6, 14) >= 1);
 });
+
+/* 独立穷举参照：不调用 solver 的候选、下界或置换表，以全部合法格 BFS。 */
+function exhaustiveDepth(initial, maxDepth = initial.bank) {
+  if (initial.win) return 0;
+  const queue = [{ state: initial, depth: 0 }];
+  const seen = new Set([initial.cells.join(',')]);
+  for (let head = 0; head < queue.length; head++) {
+    const { state, depth } = queue[head];
+    if (depth >= maxDepth || state.over) continue;
+    for (let index = 0; index < state.cells.length; index++) {
+      const move = engine.applyMove(state, index);
+      if (!move.ok) continue;
+      if (move.state.win) return depth + 1;
+      const key = move.state.cells.join(',');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      queue.push({ state: move.state, depth: depth + 1 });
+    }
+  }
+  return null;
+}
+
+function assertMatchesExhaustive(game, maxDepth = game.bank) {
+  const expected = exhaustiveDepth(game, maxDepth);
+  const result = solver.solve(game, { maxDepth });
+  assert.equal(result ? result.depth : null, expected,
+    JSON.stringify({ board: engine.boardToStrings(game), bank: game.bank, maxDepth }));
+  if (result) {
+    assert.ok(solver.replay(game, result.moves).win);
+    assert.ok(solver.lowerBound(game) <= result.depth, '下界不能高估实际最优解');
+  }
+}
+
+test('播种候选包含非接波空格，主动引爆四步解不能被误剪', () => {
+  const game = engine.newGame({
+    size: 4, board: ['.FFF', 'C...', 'C...', 'C...'], bank: 4, allowPlant: true
+  });
+  assert.ok(solver.candidates(game).includes(0), '非接波位也必须保留');
+  assert.ok(solver.lowerBound(game) <= 4);
+  assert.ok(solver.replay(game, [0, 0, 0, 0]).win);
+  const result = solver.solve(game);
+  assert.ok(result && !result.timeout);
+  assert.equal(result.depth, 4);
+  assert.ok(solver.replay(game, result.moves).win);
+});
+
+test('全部 2401 个混形 2×2 棋盘与独立三步 BFS 一致', () => {
+  const alphabet = ['.', '1', '2', '3', 'C', 'F', 'U'];
+  for (let code = 0; code < alphabet.length ** 4; code++) {
+    let n = code;
+    const cells = [];
+    for (let i = 0; i < 4; i++) {
+      cells.push(alphabet[n % alphabet.length]);
+      n = Math.floor(n / alphabet.length);
+    }
+    const game = engine.newGame({
+      size: 2, board: [cells.slice(0, 2).join(''), cells.slice(2).join('')],
+      bank: 3, allowPlant: true
+    });
+    assertMatchesExhaustive(game);
+  }
+});
+
+test('含所有朝向的 3×3 播种棋盘与独立四步 BFS 一致', () => {
+  let seed = 20261026;
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const chars = engine.CELL_CHARS.join('');
+  for (let sample = 0; sample < 96; sample++) {
+    const rows = [];
+    for (let r = 0; r < 3; r++) {
+      let row = '';
+      for (let c = 0; c < 3; c++) {
+        row += random() < 0.55 ? '.' : chars[Math.floor(random() * chars.length)];
+      }
+      rows.push(row);
+    }
+    assertMatchesExhaustive(engine.newGame({ size: 3, board: rows, bank: 4, allowPlant: true }));
+  }
+});
+
+test('同格清空后重复播种的中局仍与独立 BFS 一致', () => {
+  let game = engine.newGame({
+    size: 3, board: ['3..', '...', '1..'], bank: 10, allowPlant: true
+  });
+  let planted = 0;
+  // 首次引爆原棋子；播种并再次引爆；第三次在同一格开始新的种子。
+  for (const index of [0, 0, 0, 0, 0, 0]) {
+    const result = engine.applyMove(game, index);
+    assert.ok(result.ok && !result.state.over);
+    if (result.trace.place.planted) planted++;
+    game = result.state;
+    assertMatchesExhaustive(game, 3);
+  }
+  assert.equal(planted, 2);
+});
