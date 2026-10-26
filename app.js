@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.5 三角渐变升温呼吸）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.6 正确落位反馈强化）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -61,6 +61,8 @@
  *   键盘方向键导航照常显示描边。
  * v1.7.5 三角渐变升温呼吸：::after 同形热色渐变（橙→红→深红）opacity 0→1→0
  *   交叉淡入——色彩动态变换、方向语义不变；纯 CSS 改动。
+ * v1.7.6 正确落位反馈强化：三星路径着法落地 → 落子格金色扩散环 + 上浮金勾 ✓
+ *   （goodMoveFx/lastMoveIdx），确认音加 E7 高音与金粉闪；动效减弱下关动画只留音。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -114,6 +116,7 @@
   let busy = false;
   let maxChain = 0;
   let focusIdx = -1;
+  let lastMoveIdx = -1;   /* v1.7.6：最近一次实际落子的格号——正确落位反馈作用在这格 */
   let hintStage = 0;       // 提示层级：0 无 → 1 文案 → 2 高亮
   let hintTimer = 0;
   let coach2Shown = false;
@@ -263,11 +266,15 @@
       win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.2, { type: 'triangle', gain: 0.1, delay: i * 0.11 })); },
       lose() { [330, 262, 208].forEach((f, i) => tone(f, 0.24, { type: 'sine', gain: 0.1, delay: i * 0.14 })); },
       /* v1.7.0 正确落位确认音：上行大六度双击铃 + 高八度泛音——
-       * 与落子/命中/喝彩音色错开，一听就知道「这步走在最优路上」 */
+       * 与落子/命中/喝彩音色错开，一听就知道「这步走在最优路上」
+       * v1.7.6 强化：顶上多一粒高音（E7）+ 高频金粉闪音，与金环/金勾同时，
+       * 响度略增仍不盖过爆炸层。 */
       correct() {
-        tone(1318, 0.1, { type: 'sine', gain: 0.09 });
-        tone(1976, 0.16, { type: 'sine', gain: 0.08, delay: 0.085 });
-        tone(2637, 0.12, { type: 'triangle', gain: 0.04, delay: 0.17 });
+        tone(1318, 0.11, { type: 'sine', gain: 0.1 });
+        tone(1976, 0.18, { type: 'sine', gain: 0.09, delay: 0.085 });
+        tone(2637, 0.14, { type: 'triangle', gain: 0.05, delay: 0.17 });
+        tone(3520, 0.22, { type: 'sine', gain: 0.05, delay: 0.26 });
+        noise(0.24, { from: 7200, to: 2600, gain: 0.045, delay: 0.09 });
       },
       /* v1.7.0 三连胜里程碑礼赞：上行琶音 + 双八度冠音 + 金色 shimmer */
       streakWin() {
@@ -972,6 +979,7 @@
       return;
     }
     history.push(game);
+    lastMoveIdx = idx;
     game = r.state;
     maxChain = Math.max(maxChain, r.trace.waves.length);
     if (r.trace.waves.length === 0) hintStage = 0;
@@ -1001,9 +1009,32 @@
     }
   }
 
+  /* v1.7.6 正确落位强化反馈：落子格金色扩散环 + 格心上浮金勾 ✓——
+   * 与三连确认音同时触发，视觉上立刻可见「这步走在最优路上」。
+   * 环动画用 remove→reflow→add 重触发；金勾用 cellCenter 定位（与碎片/冲击波同法）。 */
+  function goodMoveFx(i) {
+    const cell = boardEl.children[i];
+    if (!cell) return;
+    cell.classList.remove('good-move');
+    void cell.offsetWidth;
+    cell.classList.add('good-move');
+    setTimeout(() => cell.classList.remove('good-move'), 620);
+    const rects = Array.from(boardEl.children).map(c => c.getBoundingClientRect());
+    const wrapRect = boardWrap.getBoundingClientRect();
+    const c = cellCenter(i, rects, wrapRect);
+    const el = document.createElement('div');
+    el.className = 'good-tick';
+    el.textContent = '✓';
+    el.style.left = c.x + 'px';
+    el.style.top = c.y + 'px';
+    boardWrap.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 760);
+  }
+
   /* v1.7.0 正确落位音效反馈：落子后局面仍能按最优（三星）路径清盘（剩余最少投点数
    * ≤ par - 已投点数）→ 播明显的确认音。求解超时 / 已偏离最优 / 必败都不响。
-   * 延迟 90ms 再算，让棋盘先完成重绘；轻预算后台求解不卡手。 */
+   * 延迟 90ms 再算，让棋盘先完成重绘；轻预算后台求解不卡手。
+   * v1.7.6 反馈强化：命中最优路径时除确认音外加金环+金勾视觉（goodMoveFx）。 */
   function checkMoveQuality() {
     if (!level || game.over) return;
     const parLeft = level.par - game.placed;
@@ -1012,7 +1043,7 @@
       if (!game || game.over || busy) return;
       let res = null;
       try { res = S.solve(game, { timeBudget: 280 }); } catch (e) { return; }
-      if (res && !res.timeout && res.depth <= parLeft) sfx.correct();
+      if (res && !res.timeout && res.depth <= parLeft) { sfx.correct(); goodMoveFx(lastMoveIdx); }
     }, 90);
   }
 

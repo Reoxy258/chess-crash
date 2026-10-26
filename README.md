@@ -223,6 +223,12 @@
 - **技术选型**：opacity 交叉淡入而非 `@property` 色彩插值——opacity 动画全浏览器支持（含旧 WebView，不闪烁回退）且走 GPU 合成；clip-path 与 `::before` 同形（四朝向 clip-path 规则重新扩展到 `::after`），只裁形状不出界；`(0,3,1)` 规则不与 div 的 `animation: none` 冲突（伪元素动画在自身规则上）；动效减弱偏好下关闭动画、`opacity:0` 静止为冷色渐变。div 保持零动画，`bump/blast/hintglow` 照旧接管。
 - 实测（3-1 ▲）：`::after` 与 `::before` clip-path 逐字符一致、热层 `z-index:-1`；拨动画时间 0ms→opacity 0、450ms→0.5、900ms→1（关键帧插值精确）；盒内动画仅 `trihot`、div 动画 `none`。实测（5-1）：非 p3 三角 `::after` content 为 `none`（不生成）、纯色不变；p3 ▼ 呼吸正常。纯 CSS 改动。
 
+## 验证记录（1.7.6）——正确落位反馈强化
+
+- **视觉**（v1.7.0 仅有确认音，无视觉区分）：`tryPlay` 捕获 `lastMoveIdx`；`checkMoveQuality` 命中最优路径时除确认音外调用新增 `goodMoveFx(i)`——落子格**金色扩散环**（`goodring`，box-shadow 0→15px，比 p3pulse 预警环宽一倍——奖励比警示醒目）+ 格心**上浮金勾 ✓**（`good-tick`，cellCenter 定位、与碎片/冲击波同法，`cubic-bezier(.2,.6,.3,1)` 上浮渐隐 0.7s）。金色 `#f5b31a` 与弹字评价 t1/连胜庆典同语言；动效减弱偏好下两者动画关闭（金勾基线 opacity:0 不留残影），只留确认音。
+- **音效**：`sfx.correct` 加 E7 高音（3520Hz、0.22s）与高频金粉闪音（noise 7200→2600），原三铃响度微增；E7 与 7200 闪音为 correct 独有频率，可作声学指纹。
+- 实测（3-2「朝向的艺术」，par=2，仅两个非终局首着——最优格 2 / 非最优格 3）：最优首着 → 金环 + 金勾均触发、频谱含 1318/1976/2637/**3520（新）**/7200（新）；非最优首着 → 金环金勾零触发、频谱无 1318/2637/3520（出现的 1976 经查为 streak 冠音 988×2 的撞频，v1.6.0 起即有的巧合，非 correct）；`.good-move` 类 620ms 后清理无残留。求解判定逻辑零改动（仍 90ms 延迟 + 280ms 预算 + `res.depth ≤ par - placed`）。
+
 ## 发布
 
 GitHub Pages，`main` 分支根目录。测试 → 提交 → 推送 → 线上核对。

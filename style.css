@@ -7,6 +7,7 @@
  * v1.7.4 三角 p3 弃环改渐变：移除脉冲环，::before 填黄→橙→红三段渐变（尖浅宽深）；
  *   点击棋子不再留焦点描边（描边改为键盘方向键导航专用）
  * v1.7.5 三角 p3 渐变「升温呼吸」：::after 同形热色渐变（橙→红→深红）opacity 0→1→0
+ * v1.7.6 正确落位反馈强化：落子格金色扩散环 + 上浮金勾 ✓，确认音加高音与金粉闪
  */
 
 :root {
@@ -656,6 +657,32 @@ button {
   100% { opacity: 0; transform: translate(-50%, -135%) scale(1.02); }
 }
 
+/* v1.7.6 正确落位反馈：落子仍在三星路径 → 落子格金色扩散环（0→15px，
+   比 p3pulse 预警环宽一倍——奖励比警示更醒目）+ 格心上浮金勾 ✓，
+   与强化后的三连确认音同时触发。金 #f5b31a 与弹字评价 t1/连胜庆典同语言。 */
+.cell.good-move { animation: goodring .55s ease-out; }
+@keyframes goodring {
+  0% { box-shadow: 0 0 0 0 rgba(245, 179, 26, .85); }
+  100% { box-shadow: 0 0 0 15px rgba(245, 179, 26, 0); }
+}
+.good-tick {
+  position: absolute;
+  z-index: 6;
+  font-weight: 900;
+  font-size: clamp(17px, 4vmin, 24px);
+  line-height: 1;
+  color: #f5b31a;
+  text-shadow: 0 2px 0 rgba(43, 52, 64, .3), 0 0 18px rgba(245, 179, 26, .65);
+  pointer-events: none;
+  opacity: 0;                       /* 基线隐形：动效减弱关掉动画后不留残影 */
+  animation: goodtick .7s cubic-bezier(.2, .6, .3, 1) forwards;
+}
+@keyframes goodtick {
+  0% { opacity: 0; transform: translate(-50%, -34%) scale(.55); }
+  22% { opacity: 1; transform: translate(-50%, -58%) scale(1.18); }
+  100% { opacity: 0; transform: translate(-50%, -125%) scale(1); }
+}
+
 /* 剩余棋子倒计时脉冲：每波消除后数字弹一下、闪主题色 */
 .hud-pieces.tick { animation: hudtick .3s ease; }
 .hud-pieces.tick b { color: var(--accent); }
@@ -865,6 +892,8 @@ button {
   .shockwave { animation: none; opacity: 0; }
   .board-flash { animation: none; opacity: 0; }
   .praise { animation: none; opacity: 1; }
+  .cell.good-move { animation: none; }
+  .good-tick { animation: none; }
   .impact { animation: none; opacity: 0; }
   .chain-badge { animation: none; }
   .hud-pieces.tick { animation: none; }
