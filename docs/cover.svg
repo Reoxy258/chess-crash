@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="PingFang SC, Microsoft YaHei, system-ui, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="beamH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0"/>
+      <stop offset=".12" stop-color="#ff8a3d" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#ffb066" stop-opacity=".9"/>
+      <stop offset=".88" stop-color="#ff8a3d" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity="0"/>
+      <stop offset=".12" stop-color="#ff8a3d" stop-opacity=".55"/>
+      <stop offset=".5" stop-color="#ffb066" stop-opacity=".9"/>
+      <stop offset=".88" stop-color="#ff8a3d" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamCoreH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset=".3" stop-color="#ffcf9e"/>
+      <stop offset=".5" stop-color="#ffffff"/>
+      <stop offset=".7" stop-color="#ffcf9e"/>
+      <stop offset="1" stop-color="#ff8a3d"/>
+    </linearGradient>
+    <linearGradient id="beamCoreV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset=".3" stop-color="#ffcf9e"/>
+      <stop offset=".5" stop-color="#ffffff"/>
+      <stop offset=".7" stop-color="#ffcf9e"/>
+      <stop offset="1" stop-color="#ff8a3d"/>
+    </linearGradient>
+    <radialGradient id="boomGlow">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset=".35" stop-color="#ffb066" stop-opacity=".75"/>
+      <stop offset=".7" stop-color="#ff8a3d" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="miniGlow">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".95"/>
+      <stop offset=".5" stop-color="#ffb066" stop-opacity=".6"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="panelShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#2b3440" flood-opacity=".1"/>
+    </filter>
+    <filter id="pieceShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#2b3440" flood-opacity=".2"/>
+    </filter>
+    <filter id="glowBlur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <path id="spark" d="M0,-10 L2.5,-2.5 L10,0 L2.5,2.5 L0,10 L-2.5,2.5 L-10,0 L-2.5,-2.5 Z"/>
+    <rect id="shard" x="-5" y="-5" width="10" height="10" rx="2.5"/>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="1200" height="630" fill="#f6f7f2"/>
+
+  <!-- 品牌角标（游戏 logo 的 3×3 点阵） -->
+  <g>
+    <rect x="72" y="24" width="44" height="44" rx="10" fill="#ff8a3d"/>
+    <g fill="#ffffff">
+      <circle cx="83" cy="35" r="3.2"/><circle cx="105" cy="35" r="3.2" opacity=".35"/>
+      <circle cx="94" cy="46" r="3.2" opacity=".35"/><circle cx="83" cy="57" r="3.2"/>
+      <circle cx="105" cy="57" r="3.2" opacity=".35"/><circle cx="94" cy="35" r="3.2" opacity=".35"/>
+      <circle cx="94" cy="57" r="3.2" opacity=".35"/><circle cx="105" cy="46" r="3.2"/>
+      <circle cx="83" cy="46" r="3.2" opacity=".35"/><circle cx="94" cy="46" r="0" />
+      <circle cx="94" cy="46" r="3.2" fill-opacity="0"/>
+    </g>
+  </g>
+
+  <!-- ===== 左：棋盘 ===== -->
+  <!-- 面板 -->
+  <rect x="72" y="90" width="480" height="480" rx="22" fill="#ffffff" stroke="#e3e6dd" filter="url(#panelShadow)"/>
+
+  <!-- 5×5 格子 -->
+  <g fill="#eef0ea">
+    <rect x="96"  y="114" width="80" height="80" rx="10"/><rect x="184" y="114" width="80" height="80" rx="10"/><rect x="272" y="114" width="80" height="80" rx="10"/><rect x="360" y="114" width="80" height="80" rx="10"/><rect x="448" y="114" width="80" height="80" rx="10"/>
+    <rect x="96"  y="202" width="80" height="80" rx="10"/><rect x="184" y="202" width="80" height="80" rx="10"/><rect x="272" y="202" width="80" height="80" rx="10"/><rect x="360" y="202" width="80" height="80" rx="10"/><rect x="448" y="202" width="80" height="80" rx="10"/>
+    <rect x="96"  y="290" width="80" height="80" rx="10"/><rect x="184" y="290" width="80" height="80" rx="10"/><rect x="272" y="290" width="80" height="80" rx="10"/><rect x="360" y="290" width="80" height="80" rx="10"/><rect x="448" y="290" width="80" height="80" rx="10"/>
+    <rect x="96"  y="378" width="80" height="80" rx="10"/><rect x="184" y="378" width="80" height="80" rx="10"/><rect x="272" y="378" width="80" height="80" rx="10"/><rect x="360" y="378" width="80" height="80" rx="10"/><rect x="448" y="378" width="80" height="80" rx="10"/>
+    <rect x="96"  y="466" width="80" height="80" rx="10"/><rect x="184" y="466" width="80" height="80" rx="10"/><rect x="272" y="466" width="80" height="80" rx="10"/><rect x="360" y="466" width="80" height="80" rx="10"/><rect x="448" y="466" width="80" height="80" rx="10"/>
+  </g>
+
+  <!-- 完好棋子（波及范围之外） -->
+  <g filter="url(#pieceShadow)">
+    <!-- 横胶囊 p1 -->
+    <g>
+      <rect x="196" y="141" width="56" height="26" rx="13" fill="#4fa3d1"/>
+      <text x="224" y="155" font-size="20" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">1</text>
+    </g>
+    <!-- 圆点 p2 -->
+    <g>
+      <circle cx="400" cy="154" r="30" fill="#f0a83c"/>
+      <text x="400" y="155" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">2</text>
+    </g>
+    <!-- 圆点 p3 -->
+    <g>
+      <circle cx="136" cy="242" r="30" fill="#e8542d"/>
+      <text x="136" y="243" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">3</text>
+    </g>
+    <!-- 方块 p2 -->
+    <g>
+      <rect x="462" y="216" width="52" height="52" rx="11" fill="#f0a83c"/>
+      <text x="488" y="243" font-size="24" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">2</text>
+    </g>
+    <!-- 圆点 p1 -->
+    <g>
+      <circle cx="136" cy="418" r="30" fill="#4fa3d1"/>
+      <text x="136" y="419" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">1</text>
+    </g>
+    <!-- 上指三角 p1 -->
+    <g>
+      <polygon points="460,444 516,444 488,388" fill="#4fa3d1"/>
+      <text x="488" y="432" font-size="20" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">1</text>
+    </g>
+    <!-- 圆点 p2 -->
+    <g>
+      <circle cx="224" cy="506" r="30" fill="#f0a83c"/>
+      <text x="224" y="507" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">2</text>
+    </g>
+    <!-- 圆点 p3 -->
+    <g>
+      <circle cx="400" cy="506" r="30" fill="#e8542d"/>
+      <text x="400" y="507" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" dominant-baseline="central">3</text>
+    </g>
+  </g>
+
+  <!-- 十字激光（波前推进） -->
+  <g>
+    <rect x="78" y="314" width="468" height="32" rx="16" fill="url(#beamH)" filter="url(#glowBlur)"/>
+    <rect x="298" y="92" width="32" height="496" rx="16" fill="url(#beamV)" filter="url(#glowBlur)"/>
+    <rect x="84" y="323" width="456" height="14" rx="7" fill="url(#beamCoreH)"/>
+    <rect x="323" y="98" width="14" height="456" rx="7" fill="url(#beamCoreV)"/>
+  </g>
+
+  <!-- 波前上的连锁爆闪（(2,1) 与 (2,3)） -->
+  <g>
+    <circle cx="224" cy="330" r="34" fill="url(#miniGlow)"/>
+    <use href="#spark" transform="translate(224,330) scale(3.4)" fill="#ffffff" opacity=".95"/>
+    <circle cx="224" cy="330" r="11" fill="#ffffff"/>
+    <use href="#shard" transform="translate(258,306) rotate(25) scale(.9)" fill="#e8542d"/>
+    <use href="#shard" transform="translate(192,356) rotate(-18) scale(.8)" fill="#f0a83c"/>
+    <use href="#shard" transform="translate(238,364) rotate(42) scale(.7)" fill="#4fa3d1"/>
+  </g>
+  <g>
+    <circle cx="400" cy="330" r="34" fill="url(#miniGlow)"/>
+    <use href="#spark" transform="translate(400,330) scale(3.4)" fill="#ffffff" opacity=".95"/>
+    <circle cx="400" cy="330" r="11" fill="#ffffff"/>
+    <use href="#shard" transform="translate(432,306) rotate(32) scale(.8)" fill="#f0a83c"/>
+    <use href="#shard" transform="translate(370,358) rotate(-8) scale(.9)" fill="#e8542d"/>
+    <use href="#shard" transform="translate(414,362) rotate(18) scale(.7)" fill="#4fa3d1"/>
+  </g>
+
+  <!-- 中心主爆 -->
+  <g>
+    <circle cx="312" cy="330" r="86" fill="url(#boomGlow)"/>
+    <circle cx="312" cy="330" r="46" fill="none" stroke="#ff8a3d" stroke-width="5" opacity=".65"/>
+    <circle cx="312" cy="330" r="64" fill="none" stroke="#ff8a3d" stroke-width="3" opacity=".38"/>
+    <use href="#spark" transform="translate(312,330) scale(6)" fill="#ffffff" opacity=".97"/>
+    <circle cx="312" cy="330" r="22" fill="#ffffff"/>
+    <use href="#shard" transform="translate(370,282) rotate(25) scale(1.1)" fill="#e8542d"/>
+    <use href="#shard" transform="translate(248,300) rotate(-15) scale(.95)" fill="#f0a83c"/>
+    <use href="#shard" transform="translate(368,386) rotate(40) scale(.9)" fill="#4fa3d1"/>
+    <use href="#shard" transform="translate(258,376) rotate(10) scale(.85)" fill="#e8542d"/>
+    <use href="#shard" transform="translate(394,330) rotate(30) scale(.8)" fill="#ff8a3d"/>
+    <use href="#shard" transform="translate(232,338) rotate(-30) scale(.75)" fill="#ff8a3d"/>
+    <use href="#shard" transform="translate(312,266) rotate(12) scale(.7)" fill="#f0a83c"/>
+  </g>
+
+  <!-- 连锁徽章 -->
+  <g transform="rotate(-4 476 92)" filter="url(#pieceShadow)">
+    <rect x="384" y="68" width="184" height="48" rx="24" fill="#ff8a3d"/>
+    <use href="#spark" transform="translate(414,92) scale(1.3)" fill="#ffffff"/>
+    <text x="440" y="93" font-size="23" font-weight="800" fill="#ffffff" dominant-baseline="central">连锁 ×3</text>
+  </g>
+
+  <!-- 盘下标语 -->
+  <text x="312" y="602" font-size="16" fill="#6b7686" text-anchor="middle" letter-spacing="3">投一点 · 连一排 · 清一盘</text>
+
+  <!-- 环境点缀星屑 -->
+  <g opacity=".85">
+    <use href="#spark" transform="translate(58,112) scale(.65)" fill="#f0a83c"/>
+    <use href="#spark" transform="translate(600,208) scale(.5)" fill="#ff8a3d"/>
+    <use href="#spark" transform="translate(596,478) scale(.7)" fill="#f0a83c"/>
+    <use href="#spark" transform="translate(60,560) scale(.55)" fill="#ff8a3d"/>
+    <use href="#spark" transform="translate(330,58) scale(.6)" fill="#f0a83c"/>
+    <use href="#spark" transform="translate(180,72) scale(.42)" fill="#ff8a3d"/>
+  </g>
+
+  <!-- ===== 右：标题区 ===== -->
+  <text x="640" y="168" font-size="86" font-weight="900" fill="#2b3440" letter-spacing="4">十字连爆</text>
+  <text x="642" y="212" font-size="25" font-weight="700" fill="#ff8a3d" letter-spacing="12">CHESS CRASH</text>
+  <rect x="642" y="236" width="64" height="5" rx="2.5" fill="#ff8a3d"/>
+  <text x="640" y="286" font-size="27" fill="#6b7686">一颗点数，一排连锁。</text>
+  <text x="640" y="328" font-size="24" fill="#f0a83c" letter-spacing="8">★★★</text>
+
+  <g>
+    <rect x="642" y="370" width="10" height="10" rx="3" fill="#ff8a3d"/>
+    <text x="668" y="380" font-size="19" fill="#3f4a57">16 章 80 关战役 + 无限挑战 + 每日挑战</text>
+    <rect x="642" y="408" width="10" height="10" rx="3" fill="#ff8a3d"/>
+    <text x="668" y="418" font-size="19" fill="#3f4a57">五种分裂形状，连锁清盘的纯粹解谜</text>
+    <rect x="642" y="446" width="10" height="10" rx="3" fill="#ff8a3d"/>
+    <text x="668" y="456" font-size="19" fill="#3f4a57">免安装纯前端 H5，附离线单文件版</text>
+  </g>
+
+  <!-- 按钮 -->
+  <g filter="url(#pieceShadow)">
+    <rect x="640" y="508" width="216" height="52" rx="26" fill="#ff8a3d"/>
+    <polygon points="668,523 668,545 688,534" fill="#ffffff"/>
+    <text x="700" y="535" font-size="22" font-weight="700" fill="#ffffff" dominant-baseline="central">在线游玩</text>
+  </g>
+  <g filter="url(#pieceShadow)">
+    <rect x="884" y="508" width="232" height="52" rx="26" fill="#ffffff" stroke="#e3e6dd" stroke-width="1.5"/>
+    <rect x="912" y="522" width="10" height="4" rx="2" fill="#ff8a3d" transform="translate(4,0)"/>
+    <line x1="916" y1="520" x2="916" y2="540" stroke="#ff8a3d" stroke-width="3.5" stroke-linecap="round"/>
+    <polygon points="908,536 916,546 924,536" fill="#ff8a3d"/>
+    <text x="940" y="535" font-size="20" font-weight="700" fill="#2b3440" dominant-baseline="central">离线版 v1.7.8</text>
+  </g>
+  <text x="640" y="598" font-size="15" fill="#6b7686" letter-spacing="1">reoxy258.github.io/chess-crash</text>
+</svg>
