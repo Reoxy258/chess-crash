@@ -205,6 +205,12 @@
 - 环画在 div 上（沿 26% 圆角矩形轮廓，与提示/焦点描边同视觉语言），画在盒外与盒内被裁剪的三角形互不遮挡；`:where` 零优先级排在 `p3pulse` 之后实现三角覆盖，bump/blast/hintglow 等瞬时动画照旧接管；动效减弱偏好下与 `p3pulse` 一并关闭（`::before` 旧规则已清理）。
 - 实测：3-1 p3 三角 div 动画 `triring 1.8s`、`::before` 无动画且滤镜仅静态 drop-shadow（无 brightness）；手动拨动画时间至 55% 峰值时环扩散 7px、alpha 归零——与 p3pulse 关键帧值一致（隐藏标签页下所有动画时钟冻结属浏览器行为，与其他形状一致）。纯 CSS 改动，规则与演出零变化。
 
+## 验证记录（1.7.3）——三角预警贴合轮廓
+
+- v1.7.2 的三角 p3 预警环画在 div 上（box-shadow 扩散），沿 26% 圆角矩形轮廓——**没有贴合三角形**。v1.7.3 改为**同形 `::after` 放大消隐**：与 `::before` 同 clip-path 的红色三角（`rgba(232,84,45,.45)`）沉在形状底下（`z-index:-2`，`scale(1)` 时被不透明形状完全遮住），动画把它从盒中心等比放大 **1.16 倍**（≈ `p3pulse` 的 7px 环宽）同时淡出——露出的是**贴合三角形轮廓的扩散光环**，四个朝向各自贴形；周期/缓动/峰值与其他形状一致（1.8s ease、55% 峰）。
+- 修复叠加 bug：v1.7.2 删掉基类 `animation: none` 后，div 上的 `p3pulse` 矩形环会与 `::after` 三角环**同时渲染**（实测复现 `divAnimation: p3pulse`）——恢复基类 `animation: none` 拦掉 div 矩形环（`::after` 的 triring 在伪元素自身规则上不受影响；bump/blast/hintglow 优先级更高或源序在后，照旧接管）；动效减弱偏好下 `::after` 动画一并关闭。
+- 实测：3-1 p3 ▲ div 动画 `none`、盒内仅 `triring` 一个动画；`::after` 与 `::before` clip-path 逐字符一致；拨动画时间至中段 300ms 时 scale 1.083/opacity 0.216、峰值 990ms 时 scale 1.16/opacity 0；5-1 非 p3 三角 `::after` content 为 `none`（不生成）。纯 CSS 改动，规则与演出零变化。
+
 ## 发布
 
 GitHub Pages，`main` 分支根目录。测试 → 提交 → 推送 → 线上核对。
