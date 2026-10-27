@@ -1,4 +1,4 @@
-/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.8 异步流程与播种提示修复）
+/* 十字连爆 · chess-crash — 交互、演出与进度（v1.7.9 连胜庆典节奏调整）
  *
  * 依赖：engine.js / solver.js / levels.js / challenge.js（全局 CC_*）
  *
@@ -69,6 +69,8 @@
  *   try/finally 复位 busy、结果三态兜底；checkMoveQuality 同步受益（全章节可用）。
  * v1.7.8：换关取消旧异步任务，答案回放全程保护输入；挑战生成成功后再提交阶段，
  *   失败重试同一阶段；提示保留快路径并按实际播种规则补算，不再误报无解。
+ * v1.7.9 连胜庆典节奏：三连胜建立后每一胜都庆祝（此前仅逢 3 的倍数）；
+ *   CN_STREAK 补全 3–21 中文数字标题，超出用数字兜底。
  * 提示免费；失败可看答案回放；三星过关撒彩带。
  */
 (function () {
@@ -1276,9 +1278,13 @@
       saveProgress();
     }
   }
-  const CN_STREAK = { 3: '三', 6: '六', 9: '九', 12: '十二', 15: '十五', 18: '十八', 21: '二十一' };
+  const CN_STREAK = {
+    3: '三', 4: '四', 5: '五', 6: '六', 7: '七', 8: '八', 9: '九',
+    10: '十', 11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五',
+    16: '十六', 17: '十七', 18: '十八', 19: '十九', 20: '二十', 21: '二十一'
+  };
   const streakTitle = n => (CN_STREAK[n] || n) + '连胜！';
-  /* 里程碑（每 3 连胜）时胜利弹窗升级为金色烟花庆典：皇冠 + 大标题 + 战绩行 */
+  /* 三连胜建立后每一胜都庆祝（v1.7.9）：皇冠 + 大标题 + 战绩行 */
   function streakHead(streak) {
     return '<div class="streak-crown">👑</div>' +
       '<h2 class="win streak-title">' + streakTitle(streak) + '</h2>' +
@@ -1290,7 +1296,7 @@
     const prev = progress.stars[level.id] || 0;
     progress.stars[level.id] = Math.max(prev, stars);
     const streak = bumpStreak();
-    const milestone = streak % 3 === 0;   /* v1.7.0 每 3 连胜升级为金色烟花庆典 */
+    const milestone = streak >= 3;         /* v1.7.9 三连胜建立后，每一胜都庆祝 */
     saveProgress();
     if (milestone) {
       sfx.streakWin();
@@ -1329,7 +1335,7 @@
       saveJSON(KEY_RUN, { stage: passed, date: CH.dateKey(new Date()) });
     }
     const streak = bumpStreak();
-    const milestone = streak % 3 === 0;   /* v1.7.0 每 3 连胜升级为金色烟花庆典 */
+    const milestone = streak >= 3;         /* v1.7.9 三连胜建立后，每一胜都庆祝 */
     if (milestone) {
       sfx.streakWin();
       fireworks();
@@ -1389,7 +1395,7 @@
       saveJSON(KEY_DAILY, rec);
     }
     const streak = bumpStreak();
-    const milestone = streak % 3 === 0;   /* v1.7.0 每 3 连胜升级为金色烟花庆典 */
+    const milestone = streak >= 3;         /* v1.7.9 三连胜建立后，每一胜都庆祝 */
     if (milestone) {
       sfx.streakWin();
       fireworks();

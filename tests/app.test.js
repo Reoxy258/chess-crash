@@ -223,3 +223,78 @@ test('单步动画异常后恢复已结算棋盘并释放锁，后续仍能通�
   assert.equal(h.app.state.game.win, true);
   assert.equal(h.app.state.progress.stars['1-4'], 3);
 });
+
+/* ============ v1.7.9 连胜节奏回归 ============ */
+function levelGame(h, levelIdx) {
+  const lv = h.levels.LEVELS[levelIdx];
+  return h.engine.newGame({ size: lv.size, board: lv.board, bank: lv.bank, allowPlant: lv.allowPlant });
+}
+function firstWinIndex(h, levelIdx) {
+  const g = levelGame(h, levelIdx);
+  for (let i = 0; i < g.cells.length; i++) {
+    const r = h.engine.applyMove(g, i);
+    if (r.ok && r.state.win) return i;
+  }
+  throw new Error('no winning move for ' + h.levels.LEVELS[levelIdx].id);
+}
+function overlayTitle(h) {
+  const m = h.get('overlay-box').innerHTML.match(/<h2[^>]*>([^<]*)<\/h2>/);
+  return m ? m[1] : null;
+}
+
+test('v1.7.9 三连胜起每一胜都庆祝：第 1、2 胜普通弹窗，第 3、4、5 胜金色庆典', async () => {
+  const h = boot();
+  h.app.startLevel(5);                        /* 2-1 */
+  const winIdx = firstWinIndex(h, 5);
+  const streaks = [];
+  const boxes = [];
+  const titles = [];
+  for (let round = 1; round <= 5; round++) {
+    h.get('coach-next').dispatch('click');    /* 首局 debut 教学与重开后的教学都关掉 */
+    await h.move(winIdx);
+    streaks.push(h.app.state.progress.streak);
+    boxes.push(h.get('overlay-box').classList.contains('streak'));
+    titles.push(overlayTitle(h));
+    h.get('ov-retry').dispatch('click');      /* 再玩一次：胜利不清零连胜 */
+  }
+  assert.deepEqual(streaks, [1, 2, 3, 4, 5]);
+  assert.deepEqual(boxes, [false, false, true, true, true]);
+  assert.deepEqual(titles, ['清空棋盘！', '清空棋盘！', '三连胜！', '四连胜！', '五连胜！']);
+});
+
+test('v1.7.9 败局清零连胜，重置后首胜回到普通弹窗', async () => {
+  const h = boot();
+  /* 连胜两局：2-1 → 2-2 */
+  h.app.startLevel(5);
+  h.get('coach-next').dispatch('click');
+  await h.move(firstWinIndex(h, 5));
+  h.get('ov-next').dispatch('click');
+  h.get('coach-next').dispatch('click');
+  await h.move(firstWinIndex(h, 6));
+  assert.equal(h.app.state.progress.streak, 2);
+  /* 2-3 花光点数不清盘 → 败局清零 */
+  h.get('ov-next').dispatch('click');
+  let sim = levelGame(h, 7);
+  const waste = [];
+  while (!sim.over) {
+    let stepped = false;
+    for (let i = 0; i < sim.cells.length; i++) {
+      const r = h.engine.applyMove(sim, i);
+      if (r.ok && !r.state.win) { waste.push(i); sim = r.state; stepped = true; break; }
+    }
+    if (!stepped) break;
+  }
+  assert.equal(sim.over, true, '模拟应走到终局');
+  assert.equal(sim.win, false, '模拟应为败局');
+  for (const idx of waste) await h.move(idx);
+  assert.equal(overlayTitle(h), '点数用完了');
+  assert.equal(h.app.state.progress.streak, 0, '败局清零连胜');
+  /* 重试 → solver 整解通关 → 回 streak 1 普通弹窗 */
+  h.get('ov-retry').dispatch('click');
+  const solve = h.solver.solve(levelGame(h, 7), { timeBudget: 3000 });
+  assert.ok(solve && solve.moves && solve.moves.length, '2-3 应有整解');
+  for (const mv of solve.moves) await h.move(mv);
+  assert.equal(h.app.state.progress.streak, 1);
+  assert.equal(h.get('overlay-box').classList.contains('streak'), false);
+  assert.equal(overlayTitle(h), '清空棋盘！');
+});
